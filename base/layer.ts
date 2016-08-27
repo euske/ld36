@@ -11,9 +11,14 @@ class Layer {
     tasks: Task[];
     sprites: Sprite[];
     entities: Entity[];
+    
+    mouseFocus: Sprite = null;
+    mouseActive: Sprite = null;
+    clicked: Signal;
 
     constructor() {
 	this.init();
+	this.clicked = new Signal(this);
     }
 
     toString() {
@@ -25,6 +30,8 @@ class Layer {
 	this.tasks = [];
 	this.sprites = [];
 	this.entities = [];
+	this.mouseFocus = null;
+	this.mouseActive = null;
     }
   
     tick(t: number) {
@@ -113,6 +120,39 @@ class Layer {
 	    }
 	}
 	return a;
+    }
+    
+    findSpriteAt(p: Vec2) {
+	for (let sprite of this.sprites) {
+	    if (sprite.mouseSelectable &&
+		sprite.getBounds().containsPt(p)) {
+		return sprite;
+	    }
+	}
+	return null;
+    }
+
+    mousedown(p: Vec2, button: number) {
+	if (button == 0) {
+	    this.mouseFocus = this.findSpriteAt(p);
+	    this.mouseActive = this.mouseFocus;
+	}
+    }
+    
+    mouseup(p: Vec2, button: number) {
+	if (button == 0) {
+	    if (this.mouseActive !== null) {
+		this.clicked.fire(this.mouseActive);
+	    }
+	    this.mouseActive = null;
+	    this.mouseFocus = this.findSpriteAt(p);
+	}
+    }
+    
+    mousemove(p: Vec2) {
+	if (this.mouseActive === null) {
+	    this.mouseFocus = this.findSpriteAt(p);
+	}
     }
 }
 

@@ -153,6 +153,7 @@ class Sprite extends Task {
     zOrder: number = 0;
     scale: Vec2 = new Vec2(1, 1);
     rotation: number = 0;
+    mouseSelectable: boolean = false;
 
     constructor(pos: Vec2) {
 	super();
