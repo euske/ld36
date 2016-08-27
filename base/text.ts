@@ -110,9 +110,9 @@ class ShadowFont extends Font {
 	ctx: CanvasRenderingContext2D,
 	text: string, x: number, y: number) {
 	this.renderBackground(ctx, text, x, y);
-	this.renderGlyphs(ctx, this._glyphs, this._csize, text, x, y);
 	this.renderGlyphs(ctx, this._glyphs2, this._csize, text,
 			  x+this.shadowdist, y+this.shadowdist);
+	this.renderGlyphs(ctx, this._glyphs, this._csize, text, x, y);
     }
 }
 
