@@ -9,6 +9,13 @@
 ///
 let SPRITES: SpriteSheet;
 
+function fillRect(
+    ctx: CanvasRenderingContext2D, bx: number, by: number,
+    rect: Rect, color: string) {
+    ctx.fillStyle = color;
+    ctx.fillRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+}
+
 function drawRect(
     ctx: CanvasRenderingContext2D, bx: number, by: number,
     rect: Rect, color: string, width: number) {
@@ -25,30 +32,9 @@ class Button extends Sprite {
     constructor(frame: Rect) {
 	super(frame.center());
 	this.mouseSelectable = true;
-	this.imgsrc = new FillImageSource('blue', frame.sub(this.pos));
+	this.imgsrc = new FillImageSource('white', frame.sub(this.pos));
     }
     
-}
-
-
-//  Basket
-//
-class Basket extends Sprite {
-
-    frame: Rect;
-
-    constructor(frame: Rect) {
-	super(new Vec2());
-	this.frame = frame;
-    }
-    
-    render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
-	drawRect(ctx, bx, by, this.frame.inflate(4,4), 'black', 4);
-    }
-
-    contains(product: Product) {
-	return this.frame.containsRect(product.getCollider() as Rect);
-    }
 }
 
 
@@ -56,17 +42,19 @@ class Basket extends Sprite {
 //
 class Product extends Entity {
 
+    customer: Customer;
     size: Vec2;
     price: number = 10;
     name: string = 'thing';
     
     rot90: boolean = false;
-    inbasket: boolean = false;
+    realsize: boolean = false;
     acceptable: boolean = false;
 
-    constructor(pos: Vec2, color: string, size: Vec2) {
-	super(pos);
+    constructor(customer: Customer, color: string, size: Vec2) {
+	super(new Vec2());
 	this.mouseSelectable = true;
+	this.customer = customer;
 	this.size = size;
 	this.imgsrc = new FillImageSource(color, new Rect());
 	this.updateShape();
@@ -77,14 +65,14 @@ class Product extends Entity {
 	if (this.isFocused()) {
 	    drawRect(ctx, bx, by, this.getCollider().getAABB().inflate(4,4), 'white', 2);
 	}
-	if (this.inbasket && !this.acceptable) {
+	if (this.realsize && !this.acceptable) {
 	    drawRect(ctx, bx, by, this.getCollider().getAABB().inflate(2,2), 'red', 1);
 	}
     }
 
-    move(v: Vec2, basket: Basket) {
+    move(v: Vec2) {
 	this.moveIfPossible(v);
-	this.inbasket = basket.frame.containsPt(this.pos);
+	this.realsize = this.customer.basket.containsPt(this.pos);
 	this.updateShape();
     }
 
@@ -94,7 +82,7 @@ class Product extends Entity {
     }
 
     updateShape() {
-	let size = (this.inbasket)? this.size : this.size.scale(0.2);
+	let size = (this.realsize)? this.size : this.size.scale(0.2);
 	if (this.rot90) {
 	    this.rotation = Math.PI/2;
 	    this.collider = new Rect(-size.y/2, -size.x/2, size.y, size.x);
@@ -115,19 +103,24 @@ class Product extends Entity {
 //
 class Customer extends Entity {
 
-    patience: number = 10;
+    static placeRect: Rect = new Rect(0, 54, 220, 186);
+    
     sessionStart: number = -1;
     walking: boolean = false;
     angry: boolean = false;
+    basket: Rect;
+    patience: number;
     space: number;
     speed: number;
     
     constructor(pos: Vec2) {
 	super(pos);
-	this.imgsrc = new FillImageSource('blue', new Rect(-10,-10,20,20));
+	this.imgsrc = new FillImageSource('yellow', new Rect(-8,-8,16,16));
 	this.collider = this.imgsrc.dstRect;
-	this.space = rnd(10);
-	this.speed = rnd(1,4);
+	this.basket = Customer.placeRect.resize(100+rnd(100), 80+rnd(100));
+	this.patience = 5+rnd(15);
+	this.space = 8+rnd(8);
+	this.speed = 2+rnd(4);
     }
 
     update() {
@@ -144,7 +137,7 @@ class Customer extends Entity {
 			e.getCollider().overlaps(collider));
 	    });
 	    if (a.length == 0) {
-		this.movePos(new Vec2(-this.speed, 0));
+		this.movePos(new Vec2(-rnd(this.speed), 0));
 	    }
 	}
     }
@@ -158,7 +151,7 @@ class Customer extends Entity {
     }
 
     isReadyForSession() {
-	return (this.pos.x <= 100);
+	return (this.pos.x <= 64);
     }
 
     isSessionStarted() {
@@ -168,7 +161,7 @@ class Customer extends Entity {
     startSession() {
 	this.sessionStart = this.time;
 	return [
-	    new Product(new Vec2(300,30), 'green', new Vec2(100,40))
+	    new Product(this, 'green', new Vec2(100,40))
 	];
     }
 }
@@ -178,17 +171,24 @@ class Customer extends Entity {
 // 
 class Game extends GameScene {
 
+    prodBox: TextBox;
     priceBox: DialogBox;
-    basket: Basket;
     
+    nextcust: number = 0;
     customers: Customer[] = [];
     products: Product[] = [];
+    laneRect: Rect = new Rect(0, 0, 320, 50);
+    prodRect: Rect = new Rect(220, 54, 100, 186);
     
     constructor(app: App) {
 	super(app);
 	let font = new Font(APP.images['font'], 'white');
+	let shfont = new ShadowFont(APP.images['font'], 'white');
 	let hifont = new InvertedFont(APP.images['font'], 'white');
-	
+
+	this.prodBox = new TextBox(this.screen);
+	this.prodBox.font = shfont;
+
 	let textRect = this.screen.resize(160, 100);
 	this.priceBox = new DialogBox(textRect);
 	this.priceBox.font = font;
@@ -248,7 +248,7 @@ class Game extends GameScene {
 	    if (this.prevPos !== null) {
 		let sprite = this.layer.mouseActive;
 		if (sprite instanceof Product) {
-		    sprite.move(p.sub(this.prevPos), this.basket);
+		    sprite.move(p.sub(this.prevPos));
 		}
 		this.prevPos = p;
 	    }
@@ -261,10 +261,10 @@ class Game extends GameScene {
 
 	this.priceBox.start(this.layer);
 	this.priceBox.visible = false;
-	this.basket = new Basket(new Rect(8, 64, 200, 150));
-	this.add(new Button(new Rect(260, 120, 40, 20)));
+	this.add(new Button(new Rect(240, 220, 40, 16)));
 	
-	this.initCustomers();
+	this.nextcust = 0;
+	this.initCustomers(3);
     }
 
     tick(t: number) {
@@ -283,40 +283,41 @@ class Game extends GameScene {
 		this.startSession(customer);
 	    }
 	}
+	if (this.nextcust < t) {
+	    this.nextcust = t+rnd(1, 5);
+	    if (this.customers.length < 8) {
+		this.addCustomer(true);
+	    }
+	}
     }
 
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
 	ctx.fillStyle = 'rgb(0,0,0)';
 	ctx.fillRect(bx, by, this.screen.width, this.screen.height);
-	ctx.fillStyle = 'rgb(255,0,0)';
-	ctx.fillRect(bx, by, this.screen.width, 50);
-	ctx.fillStyle = 'rgb(255,255,20)';
-	ctx.fillRect(bx, by+54, this.screen.width, this.screen.height-54);
-	this.basket.render(ctx, bx, by);
+	fillRect(ctx, bx, by, this.laneRect, 'rgb(32,128,220)');
+	fillRect(ctx, bx, by, this.prodRect, 'rgb(128,64,0)');
+	fillRect(ctx, bx, by, Customer.placeRect, 'gray');
+
+	let customer = this.getCustomer();
+	// draw a basket.
+	if (customer !== null && customer.isSessionStarted()) {
+	    drawRect(ctx, bx, by, customer.basket.inflate(4,4), 'black', 4);
+	}
 	super.render(ctx, bx, by);
+	this.prodBox.render(ctx, bx, by);
 	// draw a textbox and its border.
 	if (this.priceBox.visible) {
 	    this.priceBox.render(ctx, bx, by);
 	    drawRect(ctx, bx, by, this.priceBox.frame.inflate(-2,-2), 'white', 2);
 	}
-	let customer = this.getCustomer();
-	if (customer !== null) {
+	// draw the indicator.
+	if (customer !== null && customer.isSessionStarted()) {
 	    let t = lowerbound(0, customer.getTimeLeft());
 	    ctx.fillStyle = 'rgb(0,255,0)';
-	    ctx.fillRect(bx+10, by+this.screen.height-20, t*10, 10);
+	    ctx.fillRect(bx+32, by+4, t*16, 8);
 	}
     }
     
-    initCustomers() {
-	this.customers = [
-	    new Customer(new Vec2(100, 20)),
-	    new Customer(new Vec2(200, 20))
-	];
-	for (let customer of this.customers) {
-	    this.add(customer);
-	}
-    }
-
     getCustomer() {
 	if (0 < this.customers.length) {
 	    return this.customers[0];
@@ -324,20 +325,48 @@ class Game extends GameScene {
 	return null;
     }
     
+    addCustomer(rightmost: boolean) {
+	let x: number;
+	if (rightmost) {
+	    x = this.screen.width;
+	} else if (0 < this.customers.length) {
+	    x = this.customers[this.customers.length-1].pos.x + 16+rnd(10);
+	} else {
+	    x = 64;
+	}
+	let customer = new Customer(new Vec2(x, 24));
+	this.customers.push(customer);
+	this.add(customer);
+    }
+    
+    initCustomers(n: number) {
+	this.customers = [];
+	for (let i = 0; i < n; i++) {
+	    this.addCustomer(false);
+	}
+    }
+
     startSession(customer: Customer) {
-	assert(this.products.length == 0);
+	assert(!customer.isSessionStarted());
+	let pos = new Vec2(240, 70);
 	this.products = customer.startSession();
 	for (let product of this.products) {
+	    product.pos = pos;
 	    this.layer.addTask(product);
+	    this.prodBox.addSegment(pos.move(20, -10), product.name);
+	    this.prodBox.addSegment(pos.move(20, 0), '$'+product.price);
+	    pos = pos.move(0, 20);
 	}
     }
 
     endSession(customer: Customer, success: boolean) {
+	assert(customer.isSessionStarted());
 	this.priceBox.visible = false;
 	for (let product of this.products) {
 	    product.stop();
 	}
 	this.products = [];
+	this.prodBox.clear();
 	customer.angry = !success;
 	customer.walk();
 	removeElement(this.customers, customer);
@@ -355,7 +384,7 @@ class Game extends GameScene {
 	    0);
 	let correct = rnd(n);
 	for (let i = 0; i < n; i++) {
-	    let d = (i == correct)? 0 : rnd(-total/4, total/4);
+	    let d = i-correct;
 	    menu.addItem(new Vec2(16, i*10+12), '$'+(total+d), d);
 	}
 	menu.selected.subscribe((_, value) => {
@@ -370,7 +399,8 @@ class Game extends GameScene {
     checkProducts(finish: boolean) {
 	let ok = false;
 	for (let product of this.products) {
-	    product.acceptable = this.basket.contains(product);
+	    let rect = product.getCollider() as Rect;
+	    product.acceptable = product.customer.basket.containsRect(rect);
 	    if (!product.acceptable) return;
 	    ok = true;
 	}
