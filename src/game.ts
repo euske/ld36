@@ -39,6 +39,19 @@ class Basket extends Sprite {
 }
 
 
+//  Button
+//
+class Button extends Sprite {
+    
+    constructor(frame: Rect) {
+	super(frame.center());
+	this.mouseSelectable = true;
+	this.imgsrc = new FillImageSource('blue', frame.sub(this.pos));
+    }
+    
+}
+
+
 //  Product
 //
 class Product extends Entity {
@@ -54,6 +67,7 @@ class Product extends Entity {
 
     constructor(scene: Game, pos: Vec2, color: string, size: Vec2) {
 	super(pos);
+	this.mouseSelectable = true;
 	this.scene = scene;
 	this.size = size;
 	this.imgsrc = new FillImageSource(color, new Rect());
@@ -62,7 +76,7 @@ class Product extends Entity {
 
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
 	super.render(ctx, bx, by);
-	if (this.scene.focus === this) {
+	if (this.isFocused()) {
 	    drawRect(ctx, bx, by, this.getCollider().getAABB().inflate(4,4), 'white', 2);
 	}
 	if (this.inbasket && !this.acceptable) {
@@ -119,6 +133,9 @@ class Game extends GameScene {
 	this.priceBox.padding = 8;
 	this.priceBox.linespace = 4;
 	this.priceBox.background = 'rgba(0,0,0,0.5)'
+	this.layer.clicked.subscribe((_,sprite) => {
+	    log("click:", sprite);
+	});
 	
 	SPRITES = new ImageSpriteSheet(
 	    APP.images['sprites'], new Vec2(16,16), new Vec2(8,8));
@@ -132,6 +149,7 @@ class Game extends GameScene {
 	this.basket = new Basket(new Rect(8, 64, 200, 150));
 
 	this.initProducts();
+	this.add(new Button(new Rect(260, 120, 40, 20)));
     }
 
     tick(t: number) {
@@ -161,7 +179,6 @@ class Game extends GameScene {
 	}
     }
     
-    focus: Product = null;
     startPos: Vec2 = null;
     prevPos: Vec2 = null;
 
@@ -174,9 +191,9 @@ class Game extends GameScene {
     mousedown(p: Vec2, button: number) {
 	if (this.priceBox.visible) {
 	    this.priceBox.mousedown(p, button);
-	} else {
-	    this.updateFocus(p);
-	    if (button == 0 && this.focus !== null) {
+	} else if (button == 0) {
+	    this.layer.mousedown(p, button);
+	    if (this.layer.mouseActive !== null) {
 		this.startPos = p;
 		this.prevPos = p;
 	    }
@@ -186,14 +203,15 @@ class Game extends GameScene {
     mouseup(p: Vec2, button: number) {
 	if (this.priceBox.visible) {
 	    this.priceBox.mouseup(p, button);
-	} else {
-	    this.updateFocus(p);
-	    if (button == 0) {
-		if (this.startPos.equals(p)) {
-		    this.focus.rotate();
+	} else if (button == 0) {
+	    if (this.startPos !== null && this.startPos.equals(p)) {
+		let sprite = this.layer.mouseActive;
+		if (sprite instanceof Product) {
+		    sprite.rotate();
 		}
-		this.prevPos = null;
 	    }
+	    this.prevPos = null;
+	    this.layer.mouseup(p, button);
 	}
     }
     
@@ -202,12 +220,13 @@ class Game extends GameScene {
 	    this.priceBox.mousemove(p);
 	} else {
 	    if (this.prevPos !== null) {
-		let v = p.sub(this.prevPos);
-		this.focus.move(v);
+		let sprite = this.layer.mouseActive;
+		if (sprite instanceof Product) {
+		    sprite.move(p.sub(this.prevPos));
+		}
 		this.prevPos = p;
-	    } else {
-		this.updateFocus(p);
 	    }
+	    this.layer.mousemove(p);
 	}
     }
 
@@ -223,7 +242,7 @@ class Game extends GameScene {
 
     openTextBox() {
 	this.priceBox.clear();
-	this.priceBox.addDisplay('HOW MUCH IN TOTAL?');
+	this.priceBox.addDisplay('UMM... TOTAL IS...');
 	// TODO: add Tax
 	let n = 5;
 	let menu = this.priceBox.addMenu();
@@ -236,6 +255,9 @@ class Game extends GameScene {
 	    let d = (i == correct)? 0 : rnd(-total/4, total/4);
 	    menu.addItem(new Vec2(16, i*10+12), '$'+(total+d), d);
 	}
+	menu.selected.subscribe((_, value) => {
+	    log("selected:", value);
+	});
     }
 
     checkProducts() {
@@ -256,18 +278,5 @@ class Game extends GameScene {
 	    }
 	});
 	return ok;
-    }
-    
-    updateFocus(p: Vec2) {
-	let a = this.layer.findEntities((e:Entity) => {
-	    return e.getCollider().containsPt(p);
-	})
-	for (let entity of a) {
-	    if (entity instanceof Product) {
-		this.focus = entity;
-	    }
-	    return;
-	}
-	this.focus = null;
     }
 }
