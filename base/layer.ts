@@ -100,7 +100,9 @@ class Layer {
 	    if (entity0.running) {
 		let collider0 = entity0.getCollider();
 		let a = this.findEntities(
-		    (e:Entity) => { return collider0.overlaps(e.getCollider()) },
+		    (e:Entity) => {
+			return (entity0 !== e && collider0.overlaps(e.getCollider()));
+		    },
 		    this.entities.slice(i+1));
 		for (let e of a) {
 		    f(entity0, e);
