@@ -113,31 +113,56 @@ class Product extends Entity {
 
 //  Customer
 //
-class Customer extends Sprite {
+class Customer extends Entity {
 
-    patience: number = 1;
+    patience: number = 10;
     sessionStart: number = 0;
-    movement: Vec2 = new Vec2();
+    walking: boolean = false;
+    angry: boolean = false;
+    space: number;
+    speed: number;
     
     constructor(pos: Vec2) {
 	super(pos);
 	this.imgsrc = new FillImageSource('blue', new Rect(-10,-10,20,20));
+	this.collider = this.imgsrc.dstRect;
+	this.space = rnd(10);
+	this.speed = rnd(1,4);
     }
 
     update() {
 	super.update();
-	this.movePos(this.movement);
-	if (!this.layer.bounds.overlaps(this.getBounds())) {
-	    this.stop();
+	if (this.walking) {
+	    this.movePos(new Vec2(-this.speed*2, 0));
+	    if (!this.layer.bounds.overlaps(this.getBounds())) {
+		this.stop();
+	    }
+	} else if (!this.isSessionStarted() && !this.isReadyForSession()) {
+	    let collider = this.getCollider().move(-this.space, 0);
+	    let a = this.layer.findEntities((e:Entity) => {
+		return (e instanceof Customer && e !== this &&
+			e.getCollider().overlaps(collider));
+	    });
+	    if (a.length == 0) {
+		this.movePos(new Vec2(-this.speed, 0));
+	    }
 	}
     }
 
     walk() {
-	this.movement.x = -4;
+	this.walking = true;
     }
 
     getTimeLeft() {
 	return (this.patience - (this.time - this.sessionStart));
+    }
+
+    isReadyForSession() {
+	return (this.pos.x <= 100);
+    }
+
+    isSessionStarted() {
+	return (0 < this.sessionStart);
     }
     
     startSession() {
@@ -240,7 +265,6 @@ class Game extends GameScene {
 	this.add(new Button(new Rect(260, 120, 40, 20)));
 	
 	this.initCustomers();
-	this.initProducts();
     }
 
     tick(t: number) {
@@ -251,9 +275,12 @@ class Game extends GameScene {
 	}
 	let customer = this.getCustomer();
 	if (customer !== null) {
-	    if (customer.getTimeLeft() <= 0) {
-		customer.walk();
-		this.customers.shift();
+	    if (customer.isSessionStarted()) {
+		if (customer.getTimeLeft() <= 0) {
+		    this.walkCustomer(false);
+		}
+	    } else if (customer.isReadyForSession()) {
+		this.initProducts(customer.startSession());
 	    }
 	}
     }
@@ -282,12 +309,23 @@ class Game extends GameScene {
     
     initCustomers() {
 	this.customers = [
-	    new Customer(new Vec2(100, 20))
+	    new Customer(new Vec2(100, 20)),
+	    new Customer(new Vec2(200, 20))
 	];
 	for (let customer of this.customers) {
 	    this.add(customer);
 	}
     }
+
+    walkCustomer(success: boolean) {
+	this.priceBox.visible = false;
+	let customer = this.getCustomer();
+	if (customer !== null) {
+	    customer.angry = !success;
+	    customer.walk();
+	    this.customers.shift();
+	}
+    }	
 
     getCustomer() {
 	if (0 < this.customers.length) {
@@ -296,17 +334,13 @@ class Game extends GameScene {
 	return null;
     }
     
-    initProducts() {
+    initProducts(products: Product[]) {
 	for (let product of this.products) {
 	    product.stop();
 	}
-	this.products = [];
-	let customer = this.getCustomer();
-	if (customer !== null) {
-	    this.products = customer.startSession();
-	    for (let product of this.products) {
-		this.layer.addTask(product);
-	    }
+	this.products = products;
+	for (let product of this.products) {
+	    this.layer.addTask(product);
 	}
     }
 
@@ -327,6 +361,7 @@ class Game extends GameScene {
 	}
 	menu.selected.subscribe((_, value) => {
 	    log("selected:", value);
+	    this.walkCustomer(value == 0);
 	});
     }
 
