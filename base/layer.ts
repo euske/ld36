@@ -34,7 +34,7 @@ class Layer {
 		task.tick(t);
 	    }
 	}
-	this.checkCollisions();
+	this.checkEntityCollisions();
 	this.tasks = this.tasks.filter((task: Task) => { return task.running; });
     }
     
@@ -78,49 +78,37 @@ class Layer {
 	}
     }
 
-    checkCollisions() {
+    checkEntityCollisions() {
+	this.checkEntityPairs(
+	    (e0:Entity, e1:Entity) => {
+		e0.collidedWith(e1);
+		e1.collidedWith(e0);
+	    });
+    }
+
+    checkEntityPairs(f: (e0:Entity, e1:Entity)=>any) {
 	for (let i = 0; i < this.entities.length; i++) {
 	    let entity0 = this.entities[i];
-	    if (entity0.running && entity0.collider !== null) {
+	    if (entity0.running) {
+		let collider0 = entity0.getCollider();
 		let a = this.findEntities(
-		    entity0.getCollider(),
+		    (e:Entity) => { return collider0.overlaps(e.getCollider()) },
 		    this.entities.slice(i+1));
-		for (let entity1 of a) {
-		    entity0.collidedWith(entity1);
-		    entity1.collidedWith(entity0);
+		for (let e of a) {
+		    f(entity0, e);
 		}
 	    }
 	}
     }
-    
-    findEntities(shape: Shape,
-		 entities: Entity[]=null,
-		 f: (e:Entity)=>boolean=null) {
-	if (entities === null) {
-	    entities = this.entities;
-	}
-	let a:Entity[] = [];
-	for (let entity1 of entities) {
-	    if (entity1.running && entity1.collider !== null &&
-		(f === null || f(entity1)) &&
-		entity1.getCollider().overlaps(shape)) {
-		a.push(entity1);
-	    }
-	}
-	return a;
-    }
 
-    findEntitiesByPt(pt: Vec2,
-		     entities: Entity[]=null,
-		     f: (e:Entity)=>boolean=null) {
+    findEntities(f: (e:Entity)=>boolean,
+		 entities: Entity[]=null) {
 	if (entities === null) {
 	    entities = this.entities;
 	}
 	let a:Entity[] = [];
 	for (let entity1 of entities) {
-	    if (entity1.running && entity1.collider !== null &&
-		(f === null || f(entity1)) &&
-		entity1.getCollider().containsPt(pt)) {
+	    if (entity1.running && f(entity1)) {
 		a.push(entity1);
 	    }
 	}
