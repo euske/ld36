@@ -116,7 +116,7 @@ class Product extends Entity {
 class Customer extends Entity {
 
     patience: number = 10;
-    sessionStart: number = 0;
+    sessionStart: number = -1;
     walking: boolean = false;
     angry: boolean = false;
     space: number;
@@ -162,7 +162,7 @@ class Customer extends Entity {
     }
 
     isSessionStarted() {
-	return (0 < this.sessionStart);
+	return (0 <= this.sessionStart);
     }
     
     startSession() {
@@ -277,10 +277,10 @@ class Game extends GameScene {
 	if (customer !== null) {
 	    if (customer.isSessionStarted()) {
 		if (customer.getTimeLeft() <= 0) {
-		    this.walkCustomer(false);
+		    this.endSession(customer, false);
 		}
 	    } else if (customer.isReadyForSession()) {
-		this.initProducts(customer.startSession());
+		this.startSession(customer);
 	    }
 	}
     }
@@ -317,16 +317,6 @@ class Game extends GameScene {
 	}
     }
 
-    walkCustomer(success: boolean) {
-	this.priceBox.visible = false;
-	let customer = this.getCustomer();
-	if (customer !== null) {
-	    customer.angry = !success;
-	    customer.walk();
-	    this.customers.shift();
-	}
-    }	
-
     getCustomer() {
 	if (0 < this.customers.length) {
 	    return this.customers[0];
@@ -334,15 +324,24 @@ class Game extends GameScene {
 	return null;
     }
     
-    initProducts(products: Product[]) {
-	for (let product of this.products) {
-	    product.stop();
-	}
-	this.products = products;
+    startSession(customer: Customer) {
+	assert(this.products.length == 0);
+	this.products = customer.startSession();
 	for (let product of this.products) {
 	    this.layer.addTask(product);
 	}
     }
+
+    endSession(customer: Customer, success: boolean) {
+	this.priceBox.visible = false;
+	for (let product of this.products) {
+	    product.stop();
+	}
+	this.products = [];
+	customer.angry = !success;
+	customer.walk();
+	removeElement(this.customers, customer);
+    }	
 
     openPriceBox() {
 	this.priceBox.clear();
@@ -361,7 +360,10 @@ class Game extends GameScene {
 	}
 	menu.selected.subscribe((_, value) => {
 	    log("selected:", value);
-	    this.walkCustomer(value == 0);
+	    let customer = this.getCustomer();
+	    if (customer !== null) {
+		this.endSession(customer, value == 0);
+	    }
 	});
     }
 
