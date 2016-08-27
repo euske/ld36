@@ -1,0 +1,40 @@
+
+Title: The (Ancient) Casher
+
+Puzzle game?
+A bit like Papers Please?
+
+You are a casher at this ancient store and...
+  There's no calculator. You have to add prices and calculate the tax.
+  Tax ratio is changed every day.
+  People want to cheat the change.
+    There could be fake money.
+    There could be a fake credit card.
+  Each person has a patience level. (i.e. timeout)
+    different speed for paying/counting/checking the money
+  People are making a strange request.
+    Old men/wheelchair people wants to carry a bag.
+    Old people are slow.
+    Some people are extremely inpatient.
+    People asks cigallettes (but they have to be older than 20)
+  Things to buy: meat, vegetable, canned food, toothbrush,
+    detergent, milk, juice, rice bag,
+  You have to handwrite a receipt.
+
+  Each product has:
+    a price, a box, weight, age restriction (tobaccos and alcohols)
+    a different tax ratio? - too hard
+      - meat pack
+      - cookie (box), small or large
+      - carrot? tomato? cabbage?
+      - eggs (have to put carefully)
+      - liquor
+      - cans
+  Customer has:
+    an age (= speed / patience), bag size
+      kid = slow and impatient, can't buy restricted stuff
+      old = slow and patient
+      youngin = fast and impatient
+      adults = fast and patient, buy expensive stuff, use credit cards (could be fraud)
+  Score = total revenue
+  Game over = too many penalties
