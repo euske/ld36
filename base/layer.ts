@@ -109,6 +109,23 @@ class Layer {
 	}
 	return a;
     }
+
+    findEntitiesByPt(pt: Vec2,
+		     entities: Entity[]=null,
+		     f: (e:Entity)=>boolean=null) {
+	if (entities === null) {
+	    entities = this.entities;
+	}
+	let a:Entity[] = [];
+	for (let entity1 of entities) {
+	    if (entity1.running && entity1.collider !== null &&
+		(f === null || f(entity1)) &&
+		entity1.getCollider().containsPt(pt)) {
+		a.push(entity1);
+	    }
+	}
+	return a;
+    }
 }
 
 
