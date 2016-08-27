@@ -8,6 +8,9 @@
 ///  game.ts
 ///
 let SPRITES: SpriteSheet;
+let FONT: Font;
+let SHFONT: Font;
+let HIFONT: Font;
 
 function fillRect(
     ctx: CanvasRenderingContext2D, bx: number, by: number,
@@ -38,37 +41,58 @@ class Button extends Sprite {
 }
 
 
+//  Balloon
+//
+class Balloon extends TextBox {
+    
+    constructor(pos: Vec2, text: string) {
+	super(new Rect(-20, -5, 40, 10));
+	this.pos = pos;
+	this.font = FONT;
+	this.lifetime = 2;
+	this.putText([text], 'center', 'center');
+    }
+
+    update() {
+	this.movePos(new Vec2(0, -4));
+    }
+}
+
+
 //  Product
 //
 class Product extends Entity {
 
     customer: Customer;
-    size: Vec2;
     price: number = 10;
     name: string = 'thing';
+    size: Vec2 = new Vec2(10,10);
     
     rot90: boolean = false;
     realsize: boolean = false;
     acceptable: boolean = false;
 
-    constructor(customer: Customer, color: string, size: Vec2) {
+    constructor(customer: Customer, color: string) {
 	super(new Vec2());
 	this.mouseSelectable = true;
 	this.customer = customer;
-	this.size = size;
 	this.imgsrc = new FillImageSource(color, new Rect());
-	this.updateShape();
     }
 
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
 	super.render(ctx, bx, by);
 	if (this.isFocused()) {
-	    drawRect(ctx, bx, by, this.getCollider().getAABB().inflate(4,4), 'white', 2);
+	    drawRect(ctx, bx, by, this.getBounds().getAABB().inflate(4,4), 'white', 2);
 	}
 	if (this.realsize && !this.acceptable) {
-	    drawRect(ctx, bx, by, this.getCollider().getAABB().inflate(2,2), 'red', 1);
+	    drawRect(ctx, bx, by, this.getBounds().getAABB().inflate(2,2), 'red', 1);
 	}
     }
+
+    start(layer: Layer) {
+	super.start(layer);
+	this.updateShape();
+    }	
 
     move(v: Vec2) {
 	this.moveIfPossible(v);
@@ -81,20 +105,56 @@ class Product extends Entity {
 	this.updateShape();
     }
 
+    getBounds() {
+	let bounds = super.getBounds();
+	if (!this.realsize) {
+	    bounds = bounds.inflate(2,2);
+	}
+	return bounds;
+    }
+    
     updateShape() {
-	let size = (this.realsize)? this.size : this.size.scale(0.2);
+	let size = (this.realsize)? this.size : this.size.scale(0.3);
 	if (this.rot90) {
 	    this.rotation = Math.PI/2;
 	    this.collider = new Rect(-size.y/2, -size.x/2, size.y, size.x);
 	} else {
 	    this.rotation = 0;
-	    this.collider = new Rect(-size.x/2, -size.y/2, size.x, size.y)
+	    this.collider = new Rect(-size.x/2, -size.y/2, size.x, size.y);
+	}
+	if (!this.realsize) {
+	    this.collider = null;
 	}
 	this.imgsrc.dstRect = new Rect(-size.x/2, -size.y/2, size.x, size.y);
     }
 
     getFencesFor(range: Rect, v: Vec2, context: string): Rect[] {
 	return [this.layer.bounds];
+    }
+}
+
+class Product1 extends Product {
+    constructor(customer: Customer) {
+	super(customer, 'green');
+	this.price = rnd(10, 20);
+	this.name = 'vege.';
+	this.size = new Vec2(80, 20);
+    }
+}
+class Product2 extends Product {
+    constructor(customer: Customer) {
+	super(customer, 'red');
+	this.price = rnd(5, 10);
+	this.name = 'apple';
+	this.size = new Vec2(15, 15);
+    }
+}
+class Product3 extends Product {
+    constructor(customer: Customer) {
+	super(customer, 'rgb(128,64,0)');
+	this.price = rnd(5, 10);
+	this.name = 'beer';
+	this.size = new Vec2(15, 50);
     }
 }
 
@@ -108,8 +168,8 @@ class Customer extends Entity {
     sessionStart: number = -1;
     walking: boolean = false;
     angry: boolean = false;
+    patience: number = 0;
     basket: Rect;
-    patience: number;
     space: number;
     speed: number;
     
@@ -118,7 +178,6 @@ class Customer extends Entity {
 	this.imgsrc = new FillImageSource('yellow', new Rect(-8,-8,16,16));
 	this.collider = this.imgsrc.dstRect;
 	this.basket = Customer.placeRect.resize(100+rnd(100), 80+rnd(100));
-	this.patience = 5+rnd(15);
 	this.space = 8+rnd(8);
 	this.speed = 2+rnd(4);
     }
@@ -160,9 +219,24 @@ class Customer extends Entity {
     
     startSession() {
 	this.sessionStart = this.time;
-	return [
-	    new Product(this, 'green', new Vec2(100,40))
-	];
+	this.patience = 5+rnd(10);
+	let n = rnd(1,5);
+	let products: Product[] = []
+	for (let i = 0; i < n; i++) {
+	    this.patience += rnd(5);
+	    switch (rnd(3)) {
+	    case 0:
+		products.push(new Product1(this));
+		break;
+	    case 1:
+		products.push(new Product2(this));
+		break;
+	    case 2:
+		products.push(new Product3(this));
+		break;
+	    }
+	}
+	return products;
     }
 }
 
@@ -172,8 +246,10 @@ class Customer extends Entity {
 class Game extends GameScene {
 
     prodBox: TextBox;
+    statusBox: TextBox;
     priceBox: DialogBox;
-    
+
+    score: number = 0;
     nextcust: number = 0;
     customers: Customer[] = [];
     products: Product[] = [];
@@ -182,17 +258,21 @@ class Game extends GameScene {
     
     constructor(app: App) {
 	super(app);
-	let font = new Font(APP.images['font'], 'white');
-	let shfont = new ShadowFont(APP.images['font'], 'white');
-	let hifont = new InvertedFont(APP.images['font'], 'white');
+	FONT = new Font(APP.images['font'], 'white');
+	SHFONT = new ShadowFont(APP.images['font'], 'white');
+	HIFONT = new InvertedFont(APP.images['font'], 'white');
 
 	this.prodBox = new TextBox(this.screen);
-	this.prodBox.font = shfont;
+	this.prodBox.font = SHFONT;
 
+	this.statusBox = new TextBox(this.prodRect.move(0,-24));
+	this.statusBox.font = SHFONT;
+	this.statusBox.padding = 8;
+	
 	let textRect = this.screen.resize(160, 100);
 	this.priceBox = new DialogBox(textRect);
-	this.priceBox.font = font;
-	this.priceBox.hifont = hifont;
+	this.priceBox.font = FONT;
+	this.priceBox.hifont = HIFONT;
 	this.priceBox.padding = 8;
 	this.priceBox.linespace = 4;
 	this.priceBox.background = 'rgba(0,0,0,0.5)'
@@ -262,9 +342,18 @@ class Game extends GameScene {
 	this.priceBox.start(this.layer);
 	this.priceBox.visible = false;
 	this.add(new Button(new Rect(240, 220, 40, 16)));
-	
+
+	this.score = 0;
+	this.updateScore();
 	this.nextcust = 0;
 	this.initCustomers(3);
+
+	let banner = new TextBox(this.screen.resize(220, 24));
+	banner.font = new Font(APP.images['font'], 'white');
+	banner.background = 'rgba(0,0,0,0.5)'
+	banner.lifetime = 3;
+	banner.putText(['DRAG PRODUCTS INTO BASKET!'], 'center', 'center');
+	this.add(banner);
     }
 
     tick(t: number) {
@@ -295,7 +384,7 @@ class Game extends GameScene {
 	ctx.fillStyle = 'rgb(0,0,0)';
 	ctx.fillRect(bx, by, this.screen.width, this.screen.height);
 	fillRect(ctx, bx, by, this.laneRect, 'rgb(32,128,220)');
-	fillRect(ctx, bx, by, this.prodRect, 'rgb(128,64,0)');
+	fillRect(ctx, bx, by, this.prodRect, 'rgb(160,200,40)');
 	fillRect(ctx, bx, by, Customer.placeRect, 'gray');
 
 	let customer = this.getCustomer();
@@ -314,8 +403,15 @@ class Game extends GameScene {
 	if (customer !== null && customer.isSessionStarted()) {
 	    let t = lowerbound(0, customer.getTimeLeft());
 	    ctx.fillStyle = 'rgb(0,255,0)';
-	    ctx.fillRect(bx+32, by+4, t*16, 8);
+	    ctx.fillRect(bx+32, by+4, t*8, 8);
 	}
+	// draw status.
+	this.statusBox.render(ctx, bx, by);
+    }
+
+    updateScore() {
+	this.statusBox.clear();
+	this.statusBox.putText(['TOTAL $'+this.score], 'right');
     }
     
     getCustomer() {
@@ -326,15 +422,14 @@ class Game extends GameScene {
     }
     
     addCustomer(rightmost: boolean) {
-	let x: number;
-	if (rightmost) {
-	    x = this.screen.width;
-	} else if (0 < this.customers.length) {
-	    x = this.customers[this.customers.length-1].pos.x + 16+rnd(10);
-	} else {
-	    x = 64;
+	let x: number = 64;
+	if (0 < this.customers.length) {
+	    x = Math.max(x, this.customers[this.customers.length-1].pos.x);
 	}
-	let customer = new Customer(new Vec2(x, 24));
+	if (rightmost) {
+	    x = Math.max(x, this.screen.width);
+	}
+	let customer = new Customer(new Vec2(x+16+rnd(10), 24));
 	this.customers.push(customer);
 	this.add(customer);
     }
@@ -369,6 +464,8 @@ class Game extends GameScene {
 	this.prodBox.clear();
 	customer.angry = !success;
 	customer.walk();
+	let balloon = new Balloon(customer.pos, success? 'YAY!' : 'BOO!');
+	this.add(balloon);
 	removeElement(this.customers, customer);
     }	
 
@@ -391,20 +488,27 @@ class Game extends GameScene {
 	    log("selected:", value);
 	    let customer = this.getCustomer();
 	    if (customer !== null) {
+		if (value == 0) {
+		    this.score += total;
+		    this.updateScore();
+		}
 		this.endSession(customer, value == 0);
 	    }
 	});
     }
 
     checkProducts(finish: boolean) {
-	let ok = false;
+	if (this.products.length == 0) return;
+	let ok = true;
 	for (let product of this.products) {
 	    let rect = product.getCollider() as Rect;
-	    product.acceptable = product.customer.basket.containsRect(rect);
-	    if (!product.acceptable) return;
-	    ok = true;
+	    if (rect !== null) {
+		product.acceptable = product.customer.basket.containsRect(rect);
+		ok = ok && product.acceptable;
+	    } else {
+		ok = false;
+	    }
 	}
-	if (!ok) return;
 	this.layer.checkEntityPairs((e0:Entity, e1:Entity) => {
 	    if (e0 instanceof Product) {
 		if (e1 instanceof Product) {
