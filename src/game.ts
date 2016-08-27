@@ -56,7 +56,6 @@ class Button extends Sprite {
 //
 class Product extends Entity {
 
-    scene: Game;
     size: Vec2;
     price: number = 10;
     name: string = 'thing';
@@ -65,10 +64,9 @@ class Product extends Entity {
     inbasket: boolean = false;
     acceptable: boolean = false;
 
-    constructor(scene: Game, pos: Vec2, color: string, size: Vec2) {
+    constructor(pos: Vec2, color: string, size: Vec2) {
 	super(pos);
 	this.mouseSelectable = true;
-	this.scene = scene;
 	this.size = size;
 	this.imgsrc = new FillImageSource(color, new Rect());
 	this.updateShape();
@@ -84,9 +82,9 @@ class Product extends Entity {
 	}
     }
 
-    move(v: Vec2) {
+    move(v: Vec2, basket: Basket) {
 	this.moveIfPossible(v);
-	this.inbasket = this.scene.basket.frame.containsPt(this.pos);
+	this.inbasket = basket.frame.containsPt(this.pos);
 	this.updateShape();
     }
 
@@ -108,7 +106,28 @@ class Product extends Entity {
     }
 
     getFencesFor(range: Rect, v: Vec2, context: string): Rect[] {
-	return [this.scene.screen];
+	return [this.layer.bounds];
+    }
+}
+
+
+//  Customer
+//
+class Customer extends Sprite {
+    
+    constructor(pos: Vec2) {
+	super(pos);
+	this.imgsrc = new FillImageSource('blue', new Rect(-10,-10,20,20));
+    }
+
+    getTime() {
+	return 10;
+    }
+    
+    getProducts() {
+	return [
+	    new Product(new Vec2(300,30), 'green', new Vec2(100,40))
+	];
     }
 }
 
@@ -119,7 +138,9 @@ class Game extends GameScene {
 
     priceBox: DialogBox;
     basket: Basket;
-    products: Product[];
+    
+    customers: Customer[] = [];
+    products: Product[] = [];
     
     constructor(app: App) {
 	super(app);
@@ -139,44 +160,6 @@ class Game extends GameScene {
 	
 	SPRITES = new ImageSpriteSheet(
 	    APP.images['sprites'], new Vec2(16,16), new Vec2(8,8));
-    }
-    
-    init() {
-	super.init();
-
-	this.priceBox.start(this.layer);
-	this.priceBox.visible = false;
-	this.basket = new Basket(new Rect(8, 64, 200, 150));
-
-	this.initProducts();
-	this.add(new Button(new Rect(260, 120, 40, 20)));
-    }
-
-    tick(t: number) {
-	super.tick(t);
-	if (this.checkProducts() && !this.priceBox.visible) {
-	    this.priceBox.visible = true;
-	    this.openTextBox();
-	}
-	if (this.priceBox.visible) {
-	    this.priceBox.tick(t);
-	}
-    }
-
-    render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
-	ctx.fillStyle = 'rgb(0,0,0)';
-	ctx.fillRect(bx, by, this.screen.width, this.screen.height);
-	ctx.fillStyle = 'rgb(255,0,0)';
-	ctx.fillRect(bx, by, this.screen.width, 50);
-	ctx.fillStyle = 'rgb(255,255,20)';
-	ctx.fillRect(bx, by+54, this.screen.width, this.screen.height-54);
-	this.basket.render(ctx, bx, by);
-	super.render(ctx, bx, by);
-	// draw a textbox and its border.
-	if (this.priceBox.visible) {
-	    this.priceBox.render(ctx, bx, by);
-	    drawRect(ctx, bx, by, this.priceBox.frame.inflate(-2,-2), 'white', 2);
-	}
     }
     
     startPos: Vec2 = null;
@@ -210,6 +193,7 @@ class Game extends GameScene {
 		    sprite.rotate();
 		}
 	    }
+	    this.checkProducts(true);
 	    this.prevPos = null;
 	    this.layer.mouseup(p, button);
 	}
@@ -222,7 +206,7 @@ class Game extends GameScene {
 	    if (this.prevPos !== null) {
 		let sprite = this.layer.mouseActive;
 		if (sprite instanceof Product) {
-		    sprite.move(p.sub(this.prevPos));
+		    sprite.move(p.sub(this.prevPos), this.basket);
 		}
 		this.prevPos = p;
 	    }
@@ -230,17 +214,66 @@ class Game extends GameScene {
 	}
     }
 
-    initProducts() {
-	this.layer.init();
-	this.products = [
-	    new Product(this, new Vec2(300,30), 'green', new Vec2(100,40))
-	];
-	for (let product of this.products) {
-	    this.layer.addTask(product);
+    init() {
+	super.init();
+
+	this.priceBox.start(this.layer);
+	this.priceBox.visible = false;
+	this.basket = new Basket(new Rect(8, 64, 200, 150));
+	this.add(new Button(new Rect(260, 120, 40, 20)));
+	
+	this.initCustomers();
+	this.initProducts();
+    }
+
+    tick(t: number) {
+	super.tick(t);
+	this.checkProducts(false);
+	if (this.priceBox.visible) {
+	    this.priceBox.tick(t);
 	}
     }
 
-    openTextBox() {
+    render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
+	ctx.fillStyle = 'rgb(0,0,0)';
+	ctx.fillRect(bx, by, this.screen.width, this.screen.height);
+	ctx.fillStyle = 'rgb(255,0,0)';
+	ctx.fillRect(bx, by, this.screen.width, 50);
+	ctx.fillStyle = 'rgb(255,255,20)';
+	ctx.fillRect(bx, by+54, this.screen.width, this.screen.height-54);
+	this.basket.render(ctx, bx, by);
+	super.render(ctx, bx, by);
+	// draw a textbox and its border.
+	if (this.priceBox.visible) {
+	    this.priceBox.render(ctx, bx, by);
+	    drawRect(ctx, bx, by, this.priceBox.frame.inflate(-2,-2), 'white', 2);
+	}
+    }
+    
+    initCustomers() {
+	this.customers = [
+	    new Customer(new Vec2(100, 20))
+	];
+	for (let customer of this.customers) {
+	    this.add(customer);
+	}
+    }
+    
+    initProducts() {
+	for (let product of this.products) {
+	    product.stop();
+	}
+	this.products = [];
+	if (this.customers) {
+	    let customer = this.customers[0];
+	    this.products = customer.getProducts();
+	    for (let product of this.products) {
+		this.layer.addTask(product);
+	    }
+	}
+    }
+
+    openPriceBox() {
 	this.priceBox.clear();
 	this.priceBox.addDisplay('UMM... TOTAL IS...');
 	// TODO: add Tax
@@ -260,14 +293,14 @@ class Game extends GameScene {
 	});
     }
 
-    checkProducts() {
+    checkProducts(finish: boolean) {
 	let ok = false;
 	for (let product of this.products) {
 	    product.acceptable = this.basket.contains(product);
-	    if (!product.acceptable) return false;
+	    if (!product.acceptable) return;
 	    ok = true;
 	}
-	if (!ok) return false;
+	if (!ok) return;
 	this.layer.checkEntityPairs((e0:Entity, e1:Entity) => {
 	    if (e0 instanceof Product) {
 		if (e1 instanceof Product) {
@@ -277,6 +310,9 @@ class Game extends GameScene {
 		}
 	    }
 	});
-	return ok;
+	if (ok && finish && !this.priceBox.visible) {
+	    this.priceBox.visible = true;
+	    this.openPriceBox();
+	}
     }
 }
