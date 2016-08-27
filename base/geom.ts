@@ -246,6 +246,10 @@ class Rect implements Shape {
 	return new Rect(this.x+v.x, this.y+v.y, this.width, this.height);  
     }
     
+    sub(v: Vec2) {
+	return new Rect(this.x-v.x, this.y-v.y, this.width, this.height);  
+    }
+    
     inflate(dw: number, dh: number) {
 	return new Rect(this.x-dw, this.y-dh, this.width+dw*2, this.height+dh*2);
     }
@@ -511,6 +515,10 @@ class Circle implements Shape {
 	return new Circle(this.center.add(v), this.radius);
     }
     
+    sub(v: Vec2) {
+	return new Circle(this.center.sub(v), this.radius);
+    }
+    
     inflate(dr: number) {
 	return new Circle(this.center, this.radius+dr);
     }
@@ -751,6 +759,10 @@ class Box {
     
     add(v: Vec3) {
 	return new Box(this.origin.add(v), this.size);
+    }
+    
+    sub(v: Vec3) {
+	return new Box(this.origin.sub(v), this.size);
     }
     
     inflate(dx: number, dy: number, dz: number) {
