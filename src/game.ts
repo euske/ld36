@@ -18,6 +18,19 @@ function drawRect(
 }
 
 
+//  Button
+//
+class Button extends Sprite {
+    
+    constructor(frame: Rect) {
+	super(frame.center());
+	this.mouseSelectable = true;
+	this.imgsrc = new FillImageSource('blue', frame.sub(this.pos));
+    }
+    
+}
+
+
 //  Basket
 //
 class Basket extends Sprite {
@@ -36,19 +49,6 @@ class Basket extends Sprite {
     contains(product: Product) {
 	return this.frame.containsRect(product.getCollider() as Rect);
     }
-}
-
-
-//  Button
-//
-class Button extends Sprite {
-    
-    constructor(frame: Rect) {
-	super(frame.center());
-	this.mouseSelectable = true;
-	this.imgsrc = new FillImageSource('blue', frame.sub(this.pos));
-    }
-    
 }
 
 
@@ -114,17 +114,34 @@ class Product extends Entity {
 //  Customer
 //
 class Customer extends Sprite {
+
+    patience: number = 1;
+    sessionStart: number = 0;
+    movement: Vec2 = new Vec2();
     
     constructor(pos: Vec2) {
 	super(pos);
 	this.imgsrc = new FillImageSource('blue', new Rect(-10,-10,20,20));
     }
 
-    getTime() {
-	return 10;
+    update() {
+	super.update();
+	this.movePos(this.movement);
+	if (!this.layer.bounds.overlaps(this.getBounds())) {
+	    this.stop();
+	}
+    }
+
+    walk() {
+	this.movement.x = -4;
+    }
+
+    getTimeLeft() {
+	return (this.patience - (this.time - this.sessionStart));
     }
     
-    getProducts() {
+    startSession() {
+	this.sessionStart = this.time;
 	return [
 	    new Product(new Vec2(300,30), 'green', new Vec2(100,40))
 	];
@@ -232,6 +249,13 @@ class Game extends GameScene {
 	if (this.priceBox.visible) {
 	    this.priceBox.tick(t);
 	}
+	let customer = this.getCustomer();
+	if (customer !== null) {
+	    if (customer.getTimeLeft() <= 0) {
+		customer.walk();
+		this.customers.shift();
+	    }
+	}
     }
 
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
@@ -248,6 +272,12 @@ class Game extends GameScene {
 	    this.priceBox.render(ctx, bx, by);
 	    drawRect(ctx, bx, by, this.priceBox.frame.inflate(-2,-2), 'white', 2);
 	}
+	let customer = this.getCustomer();
+	if (customer !== null) {
+	    let t = lowerbound(0, customer.getTimeLeft());
+	    ctx.fillStyle = 'rgb(0,255,0)';
+	    ctx.fillRect(bx+10, by+this.screen.height-20, t*10, 10);
+	}
     }
     
     initCustomers() {
@@ -258,15 +288,22 @@ class Game extends GameScene {
 	    this.add(customer);
 	}
     }
+
+    getCustomer() {
+	if (0 < this.customers.length) {
+	    return this.customers[0];
+	}
+	return null;
+    }
     
     initProducts() {
 	for (let product of this.products) {
 	    product.stop();
 	}
 	this.products = [];
-	if (this.customers) {
-	    let customer = this.customers[0];
-	    this.products = customer.getProducts();
+	let customer = this.getCustomer();
+	if (customer !== null) {
+	    this.products = customer.startSession();
 	    for (let product of this.products) {
 		this.layer.addTask(product);
 	    }
