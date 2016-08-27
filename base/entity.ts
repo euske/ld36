@@ -173,6 +173,14 @@ class Sprite extends Task {
 	super.stop();
 	this.layer.removeSprite(this);
     }
+
+    isFocused() {
+	return (this.layer !== null && this.layer.mouseFocus === this);
+    }
+    
+    isActive() {
+	return (this.layer !== null && this.layer.mouseActive === this);
+    }
     
     getBounds(pos: Vec2=null) {
 	pos = (pos !== null)? pos : this.pos;

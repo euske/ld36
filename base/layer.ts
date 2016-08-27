@@ -141,11 +141,12 @@ class Layer {
     
     mouseup(p: Vec2, button: number) {
 	if (button == 0) {
-	    if (this.mouseActive !== null) {
+	    this.mouseFocus = this.findSpriteAt(p);
+	    if (this.mouseFocus !== null &&
+		this.mouseFocus === this.mouseActive) {
 		this.clicked.fire(this.mouseActive);
 	    }
 	    this.mouseActive = null;
-	    this.mouseFocus = this.findSpriteAt(p);
 	}
     }
     
