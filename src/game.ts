@@ -54,7 +54,7 @@ class Balloon extends TextBox {
     }
 
     update() {
-	this.movePos(new Vec2(0, -4));
+	this.movePos(new Vec2(0, -2));
     }
 }
 
@@ -464,7 +464,7 @@ class Game extends GameScene {
 	this.prodBox.clear();
 	customer.angry = !success;
 	customer.walk();
-	let balloon = new Balloon(customer.pos, success? 'YAY!' : 'BOO!');
+	let balloon = new Balloon(customer.pos.move(-8,0), success? 'YAY!' : 'BOO!');
 	this.add(balloon);
 	removeElement(this.customers, customer);
     }	
