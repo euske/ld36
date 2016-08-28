@@ -1,6 +1,7 @@
 
  * product graphics
  * music
+ * difficulty tweaks
 
 Title: The (Ancient) Casher
 

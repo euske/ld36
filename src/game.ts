@@ -39,7 +39,36 @@ function drawRect(
     rect: Rect, color: string, width: number) {
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
+    ctx.beginPath();
     ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+}
+
+function drawBasket(
+    ctx: CanvasRenderingContext2D, bx: number, by: number,
+    rect: Rect, color: string) {
+    let center = rect.center();
+    ctx.beginPath();
+    for (let i = -1; i <= +1; i++) {
+	let y = center.y+i*rect.height/4;
+	ctx.moveTo(bx+rect.x, by+y);
+	ctx.lineTo(bx+rect.right(), by+y);
+    }
+    for (let i = -1; i <= +1; i++) {
+	let x = center.x+i*rect.width/4;
+	ctx.moveTo(bx+x, rect.y);
+	ctx.lineTo(bx+x, rect.bottom());
+    }
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'black';
+    ctx.stroke();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = color;
+    ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+    ctx.beginPath();
+    let radius = Math.sqrt(rect.width*rect.width + rect.height*rect.height)/2;
+    let angle = Math.atan2(rect.width, rect.height);
+    ctx.arc(center.x, center.y, radius, -angle+Math.PI*1.5, +angle+Math.PI*1.5);
+    ctx.stroke();
 }
 
 function drawCross(
@@ -372,6 +401,7 @@ class Customer extends Entity {
     walking: boolean = false;
     angry: boolean = false;
     basket: Rect = null;
+    basketColor: string = 'black';
     patience: number = 0;
     extra: number = 16;
     space: number = 8;
@@ -447,6 +477,7 @@ class CustomerKid extends Customer {
 	super(1+rnd(2));	// kids
 	this.space = 2+rnd(6);
 	this.extra = 32;
+	this.basketColor = 'rgb(0,200,200)';
     }
 
     getProducts() {
@@ -468,7 +499,6 @@ class CustomerKid extends Customer {
 		break;
 	    }
 	}
-	products = [ new ProductBeer(this, true)];
 	return products;
     }
 }
@@ -478,6 +508,7 @@ class CustomerOld extends Customer {
 	super(3+rnd(2));	// old people
 	this.space = 2+rnd(4);
 	this.extra = 16;
+	this.basketColor = 'rgb(64,0,0)';
     }
 
     getProducts() {
@@ -504,6 +535,7 @@ class CustomerYoung extends Customer {
 	super(5+rnd(2));	// young people
 	this.space = 4+rnd(4);
 	this.extra = 32;
+	this.basketColor = 'rgb(255,40,170)';
     }
 
     getProducts() {
@@ -531,6 +563,7 @@ class CustomerAdult extends Customer {
 	super(7+rnd(2));	// adult
 	this.space = 4;
 	this.extra = 16;
+	this.basketColor = 'rgb(240,200,0)';
     }
 
     getProducts() {
@@ -763,7 +796,7 @@ class Game extends GameScene {
 	let customer = this.getCustomer();
 	// draw a basket.
 	if (customer !== null && customer.isSessionStarted()) {
-	    drawRect(ctx, bx, by, customer.basket, 'black', 4);
+	    drawBasket(ctx, bx, by, customer.basket, customer.basketColor);
 	}
 	super.render(ctx, bx, by);
 	this.prodBox.render(ctx, bx, by);
