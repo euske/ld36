@@ -9,6 +9,7 @@
 ///
 let SPRITES: SpriteSheet;
 let FONT: Font;
+let COLORFONT: Font;
 let SHFONT: Font;
 let HIFONT: Font;
 const PLACERECT = new Rect(0, 54, 220, 186);
@@ -17,6 +18,13 @@ const PRODRECT = new Rect(220, 54, 100, 186);
 const CUSTOMERS_INIT = 3;
 const CUSTOMERS_MAX = 8;
 
+function multiply(c: string, n: number) {
+    let s = '';
+    while (0 < n--) {
+	s += c;
+    }
+    return s;
+}
 
 function fillRect(
     ctx: CanvasRenderingContext2D, bx: number, by: number,
@@ -206,8 +214,6 @@ class Product extends Entity {
 
     move(v: Vec2) {
 	this.moveIfPossible(v);
-	this.pos.x = int(this.pos.x);
-	this.pos.y = int(this.pos.y);
 	this.realsize = this.customer.basket.containsPt(this.pos);
 	this.updateShape();
     }
@@ -284,15 +290,15 @@ class Customer extends Entity {
     angry: boolean = false;
     basket: Rect = null;
     patience: number = 0;
-    space: number;
-    speed: number;
+    extra: number = 16;
+    space: number = 8;
+    speed: number = 2;
     
-    constructor(pos: Vec2) {
-	super(pos);
-	this.imgsrc = new FillImageSource('yellow', new Rect(-8,-8,16,16));
+    constructor(spriteno: number) {
+	super(new Vec2());
+	this.imgsrc = SPRITES.get(spriteno);
 	this.collider = this.imgsrc.dstRect;
 	this.space = 8+rnd(8);
-	this.speed = 2+rnd(4);
     }
 
     update() {
@@ -331,12 +337,26 @@ class Customer extends Entity {
     }
     
     startSession() {
+	let products = this.getProducts();
+	let board = new Board();
+	for (let product of products) {
+	    product.rot90 = board.add(product.size);
+	    board.dump();
+	}
+	let bounds = board.getBounds();
 	this.sessionStart = this.time;
-	this.patience = 5+rnd(10);
+	this.basket = PLACERECT.resize(
+	    this.extra+bounds.width*16,
+	    this.extra+bounds.height*16);
+	return products;
+    }
+
+    getProducts() {
+	this.patience = 5;
 	let n = 2+rnd(5);
 	let products: Product[] = []
 	for (let i = 0; i < n; i++) {
-	    this.patience += rnd(5);
+	    this.patience += 5+rnd(5);
 	    switch (rnd(3)) {
 	    case 0:
 		products.push(new Product1(this));
@@ -349,14 +369,35 @@ class Customer extends Entity {
 		break;
 	    }
 	}
-	let board = new Board();
-	for (let product of products) {
-	    product.rot90 = board.add(product.size);
-	    board.dump();
-	}
-	let bounds = board.getBounds();
-	this.basket = PLACERECT.resize(32+bounds.width*16, 32+bounds.height*16);
 	return products;
+    }
+}
+
+class Customer1 extends Customer {
+    constructor() {
+	super(1+rnd(2));	// kid
+	this.space = 2+rnd(6);
+    }
+}
+
+class Customer2 extends Customer {
+    constructor() {
+	super(3+rnd(2));	// old
+	this.space = 2+rnd(4);
+    }
+}
+
+class Customer3 extends Customer {
+    constructor() {
+	super(5+rnd(2));	// young
+	this.space = 4+rnd(4);
+    }
+}
+
+class Customer4 extends Customer {
+    constructor() {
+	super(7+rnd(2));	// adult
+	this.space = 4;
     }
 }
 
@@ -369,6 +410,7 @@ class Game extends GameScene {
     statusBox: TextBox;
     priceBox: DialogBox;
 
+    health: number = 3;
     score: number = 0;
     nextcust: number = 0;
     customers: Customer[] = [];
@@ -377,13 +419,16 @@ class Game extends GameScene {
     constructor(app: App) {
 	super(app);
 	FONT = new Font(APP.images['font'], 'white');
+	COLORFONT = new Font(APP.images['font'], null);
 	SHFONT = new ShadowFont(APP.images['font'], 'white');
 	HIFONT = new InvertedFont(APP.images['font'], 'white');
+	SPRITES = new ImageSpriteSheet(
+	    APP.images['sprites'], new Vec2(16,16), new Vec2(8,8));
 
 	this.prodBox = new TextBox(this.screen);
 	this.prodBox.font = SHFONT;
 
-	this.statusBox = new TextBox(PRODRECT.move(0,-24));
+	this.statusBox = new TextBox(this.screen);
 	this.statusBox.font = SHFONT;
 	this.statusBox.padding = 8;
 	
@@ -397,9 +442,6 @@ class Game extends GameScene {
 	this.layer.clicked.subscribe((_,sprite) => {
 	    log("click:", sprite);
 	});
-	
-	SPRITES = new ImageSpriteSheet(
-	    APP.images['sprites'], new Vec2(16,16), new Vec2(8,8));
     }
     
     startPos: Vec2 = null;
@@ -461,11 +503,21 @@ class Game extends GameScene {
 	this.priceBox.visible = false;
 	this.add(new Button(new Rect(240, 220, 40, 16)));
 
+	this.health = 3;
 	this.score = 0;
-	this.updateScore();
+	this.updateStatus();
 	this.nextcust = 0;
-	this.initCustomers(CUSTOMERS_INIT);
+	
+	this.customers = [];
+	this.addCustomer(new Customer2(), false);
+	this.addCustomer(new Customer3(), false);
+	this.addCustomer(new Customer1(), false);
 
+	let casher = new Sprite(new Vec2(60,30));
+	casher.imgsrc = SPRITES.get(0);
+	casher.zOrder = 1;
+	this.add(casher);
+	
 	let banner = new TextBox(this.screen.resize(220, 24));
 	banner.font = new Font(APP.images['font'], 'white');
 	banner.background = 'rgba(0,0,0,0.5)'
@@ -493,7 +545,21 @@ class Game extends GameScene {
 	if (this.nextcust < t) {
 	    this.nextcust = t+rnd(1, 5);
 	    if (this.customers.length < CUSTOMERS_MAX) {
-		this.addCustomer(true);
+		let n = (this.score < 100)? 3 : 4;
+		switch (rnd(n)) {
+		case 0:
+		    this.addCustomer(new Customer1(), true);
+		    break;
+		case 1:
+		    this.addCustomer(new Customer2(), true);
+		    break;
+		case 3:
+		    this.addCustomer(new Customer3(), true);
+		    break;
+		default:
+		    this.addCustomer(new Customer4(), true);
+		    break;
+		}
 	    }
 	}
     }
@@ -527,9 +593,12 @@ class Game extends GameScene {
 	this.statusBox.render(ctx, bx, by);
     }
 
-    updateScore() {
+    updateStatus() {
 	this.statusBox.clear();
-	this.statusBox.putText(['TOTAL $'+this.score], 'right');
+	this.statusBox.putText(['TOTAL $'+this.score],
+			       'left', 'bottom');
+	this.statusBox.putText([multiply('\x7f', this.health)],
+			       'right', 'bottom', COLORFONT);
     }
     
     getCustomer() {
@@ -539,7 +608,7 @@ class Game extends GameScene {
 	return null;
     }
     
-    addCustomer(rightmost: boolean) {
+    addCustomer(customer: Customer, rightmost: boolean) {
 	let x: number = 64;
 	if (0 < this.customers.length) {
 	    x = Math.max(x, this.customers[this.customers.length-1].pos.x);
@@ -547,18 +616,11 @@ class Game extends GameScene {
 	if (rightmost) {
 	    x = Math.max(x, this.screen.width);
 	}
-	let customer = new Customer(new Vec2(x+16+rnd(10), 24));
+	customer.pos = new Vec2(x+16+rnd(10), 24);
 	this.customers.push(customer);
 	this.add(customer);
     }
     
-    initCustomers(n: number) {
-	this.customers = [];
-	for (let i = 0; i < n; i++) {
-	    this.addCustomer(false);
-	}
-    }
-
     startSession(customer: Customer) {
 	assert(!customer.isSessionStarted());
 	let pos = new Vec2(240, 70);
@@ -585,6 +647,10 @@ class Game extends GameScene {
 	let balloon = new Balloon(customer.pos.move(-8,0), success? 'YAY!' : 'BOO!');
 	this.add(balloon);
 	removeElement(this.customers, customer);
+	if (!success) {
+	    this.health--;
+	    this.updateStatus();
+	}
     }	
 
     openPriceBox() {
@@ -608,7 +674,7 @@ class Game extends GameScene {
 	    if (customer !== null) {
 		if (value == 0) {
 		    this.score += total;
-		    this.updateScore();
+		    this.updateStatus();
 		}
 		this.endSession(customer, value == 0);
 	    }
