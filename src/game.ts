@@ -410,6 +410,7 @@ class Game extends GameScene {
     statusBox: TextBox;
     priceBox: DialogBox;
 
+    gameOver: boolean = false;
     health: number = 3;
     score: number = 0;
     nextcust: number = 0;
@@ -439,6 +440,7 @@ class Game extends GameScene {
 	this.priceBox.padding = 8;
 	this.priceBox.linespace = 4;
 	this.priceBox.background = 'rgba(0,0,0,0.5)'
+	this.priceBox.start(this.layer);
 	this.layer.clicked.subscribe((_,sprite) => {
 	    log("click:", sprite);
 	});
@@ -448,7 +450,9 @@ class Game extends GameScene {
     prevPos: Vec2 = null;
 
     keydown(key: number) {
-	if (this.priceBox.visible) {
+	if (this.gameOver) {
+	    this.init();
+	} else if (this.priceBox.visible) {
 	    this.priceBox.keydown(key);
 	}
     }    
@@ -466,7 +470,9 @@ class Game extends GameScene {
     }
 
     mouseup(p: Vec2, button: number) {
-	if (this.priceBox.visible) {
+	if (this.gameOver) {
+	    this.init();
+	} else if (this.priceBox.visible) {
 	    this.priceBox.mouseup(p, button);
 	} else if (button == 0) {
 	    if (this.startPos !== null && this.startPos.equals(p)) {
@@ -499,10 +505,11 @@ class Game extends GameScene {
     init() {
 	super.init();
 
-	this.priceBox.start(this.layer);
+	this.prodBox.clear();
 	this.priceBox.visible = false;
 	this.add(new Button(new Rect(240, 220, 40, 16)));
 
+	this.gameOver = false;
 	this.health = 3;
 	this.score = 0;
 	this.updateStatus();
@@ -519,7 +526,7 @@ class Game extends GameScene {
 	this.add(casher);
 	
 	let banner = new TextBox(this.screen.resize(220, 24));
-	banner.font = new Font(APP.images['font'], 'white');
+	banner.font = FONT;
 	banner.background = 'rgba(0,0,0,0.5)'
 	banner.lifetime = 3;
 	banner.putText(['DRAG PRODUCTS INTO BASKET!'], 'center', 'center');
@@ -650,6 +657,9 @@ class Game extends GameScene {
 	if (!success) {
 	    this.health--;
 	    this.updateStatus();
+	    if (this.health == 0) {
+		this.showGameOver();
+	    }
 	}
     }	
 
@@ -706,5 +716,15 @@ class Game extends GameScene {
 	    this.priceBox.visible = true;
 	    this.openPriceBox();
 	}
+    }
+
+    showGameOver() {
+	let banner = new TextBox(this.screen.resize(200, 24));
+	banner.font = FONT;
+	banner.background = 'rgba(0,0,0,0.5)'
+	banner.putText(['GAME OVER!'], 'center', 'center');
+	this.add(banner);
+	this.app.lockKeys();
+	this.gameOver = true;
     }
 }
