@@ -206,7 +206,7 @@ class Sprite extends Task {
 	let imgsrc = this.imgsrc
 	if (imgsrc !== null) {
 	    ctx.save();
-	    ctx.translate(bx+this.pos.x, by+this.pos.y);
+	    ctx.translate(bx+int(this.pos.x), by+int(this.pos.y));
 	    if (this.rotation) {
 		ctx.rotate(this.rotation);
 	    }
@@ -248,7 +248,7 @@ class TiledSprite extends Sprite {
 	let imgsrc = this.imgsrc as HTMLImageSource;
 	if (imgsrc !== null) {
 	    ctx.save();
-	    ctx.translate(bx+this.bounds.x, by+this.bounds.y);
+	    ctx.translate(bx+int(this.bounds.x), by+int(this.bounds.y));
 	    ctx.beginPath();
 	    ctx.rect(0, 0, this.bounds.width, this.bounds.height);
 	    ctx.clip();
@@ -320,7 +320,7 @@ class StarSprite extends Sprite {
 	let imgsrc = this.imgsrc
 	if (imgsrc !== null) {
 	    ctx.save();
-	    ctx.translate(bx+this.bounds.x, by+this.bounds.y);
+	    ctx.translate(bx+int(this.bounds.x), by+int(this.bounds.y));
 	    for (let star of this._stars) {
 		let dstRect = star.p.expand(star.s, star.s);
 		if (imgsrc instanceof FillImageSource) {

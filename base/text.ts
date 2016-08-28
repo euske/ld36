@@ -167,18 +167,17 @@ class TextBox extends Sprite {
     }
 
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
-	bx += this.pos.x;
-	by += this.pos.y;
+	ctx.save();
+	ctx.translate(bx+int(this.pos.x+this.frame.x), by+int(this.pos.y+this.frame.y));
 	if (this.background !== null) {
 	    ctx.fillStyle = this.background;
-	    ctx.fillRect(bx+this.frame.x, by+this.frame.y,
-			 this.frame.width, this.frame.height);
+	    ctx.fillRect(0, 0, this.frame.width, this.frame.height);
 	}
-	bx += this.frame.x+this.padding;
-	by += this.frame.y+this.padding;
 	for (let seg of this.segments) {
-	    seg.font.renderString(ctx, seg.text, bx+seg.bounds.x, by+seg.bounds.y);
+	    seg.font.renderString(ctx, seg.text,
+				  this.padding+seg.bounds.x, this.padding+seg.bounds.y);
 	}
+	ctx.restore();
     }
 
     clear() {
@@ -542,7 +541,7 @@ class MenuTask extends TextTask {
     updateFocus(p: Vec2) {
 	for (let item of this.items) {
 	    if (item.seg !== null) {
-		if (item.seg.bounds.containsPt(p)) {
+		if (item.seg.bounds.inflate(1,1).containsPt(p)) {
 		    this.focus = item;
 		    return;
 		}
