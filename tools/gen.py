@@ -63,23 +63,31 @@ class B:
                         break
                 if ok:
                     return (x,y,h,w)
-        if w0+w <= h0:
-            # increase width
+        sizes = (
+            max(w0+w, h0, h),
+            max(w0+h, h0, w),
+            max(w0, w, h0+h),
+            max(w0, h, h0+w)
+        )
+        minconf = 0
+        for conf in range(1,len(sizes)):
+            if sizes[conf] < sizes[minconf]:
+                minconf = conf
+        if minconf == 0:
             return (w0,0,w,h)
-        elif w0+h <= h0:
+        elif minconf == 1:
             return (w0,0,h,w)
-        elif h0+h <= w0:
+        elif minconf == 2:
             return (0,h0,w,h)
         else:
-            #assert h0+w <= w0, (h0,w0,h,w)
             return (0,h0,h,w)
     def add(self, name, size):
         conf = self.get_conf(size)
         self.objs.append(C(name, conf))
         return
 
-N = 8
-sizes = [(1,1), (1,2), (1,3), (2,2), (2,3)]
+N = 3
+sizes = [(1,1), (1,2), (1,3)]
 b = B()
 for i in range(N):
     b.add(str(i+1), random.choice(sizes))

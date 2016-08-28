@@ -94,10 +94,10 @@ class Board {
 	    }
 	}
 	let sizes = [
-	    Math.max(bounds.width+w, h),  // 0
-	    Math.max(bounds.width+h, w),  // 1 
-	    Math.max(w, bounds.height+h), // 2
-	    Math.max(h, bounds.height+w), // 3
+	    Math.max(bounds.width+w, bounds.height, h),  // 0
+	    Math.max(bounds.width+h, bounds.height, w),  // 1 
+	    Math.max(bounds.width, w, bounds.height+h), // 2
+	    Math.max(bounds.width, h, bounds.height+w), // 3
 	];
 	let minconf = 0;
 	for (let conf = 1; conf < sizes.length; conf++) {
@@ -111,9 +111,9 @@ class Board {
 	case 1:
 	    return new Rect(bounds.right(), bounds.y, h, w);
 	case 2:
-	    return new Rect(bounds.x, bounds.bottom(), h, w);
-	default:
 	    return new Rect(bounds.x, bounds.bottom(), w, h);
+	default:
+	    return new Rect(bounds.x, bounds.bottom(), h, w);
 	}
     }
     
@@ -583,7 +583,7 @@ class Game extends GameScene {
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
 	ctx.fillStyle = 'rgb(0,0,0)';
 	ctx.fillRect(bx, by, this.screen.width, this.screen.height);
-	fillRect(ctx, bx, by, LANERECT, 'rgb(32,128,220)');
+	ctx.drawImage(APP.images['lane'], 0, 0);
 	fillRect(ctx, bx, by, PRODRECT, 'rgb(160,200,40)');
 	fillRect(ctx, bx, by, PLACERECT, 'gray');
 
