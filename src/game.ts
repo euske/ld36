@@ -678,7 +678,7 @@ class Game extends GameScene {
 	if (this.nextcust < t) {
 	    this.nextcust = t+rnd(1, 5);
 	    if (this.customers.length < CUSTOMERS_MAX) {
-		let n = (this.score < 80)? 3 : 4;
+		let n = (this.score < 50)? 3 : 4;
 		switch (rnd(n)) {
 		case 0:
 		    this.addCustomer(new Customer1(), true);
@@ -810,7 +810,6 @@ class Game extends GameScene {
 	    menu.addItem(new Vec2(16, i*10+12), '$'+(total+d), d);
 	}
 	menu.selected.subscribe((_, value) => {
-	    log("selected:", value);
 	    let customer = this.getCustomer();
 	    if (customer !== null) {
 		if (value == 0) {

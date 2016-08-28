@@ -4,7 +4,7 @@ PYTHON=python
 SOX=sox
 LAME=lame
 
-AUDIOS=chachin.mp3 start.mp3 wrong.mp3 put.mp3 beep.mp3
+AUDIOS=chachin.mp3 start.mp3 wrong.mp3 put.mp3 beep.mp3 buzz.mp3
 
 all: $(AUDIOS)
 
