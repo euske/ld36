@@ -1,7 +1,5 @@
 
  * product graphics
- * trash bin
- * alcohol ban
  * music
 
 Title: The (Ancient) Casher

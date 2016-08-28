@@ -9,6 +9,7 @@
 ///
 let SPRITES: SpriteSheet;
 let FONT: Font;
+let BIGFONT: Font;
 let COLORFONT: Font;
 let SHFONT: Font;
 let HIFONT: Font;
@@ -39,6 +40,36 @@ function drawRect(
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+}
+
+function drawCross(
+    ctx: CanvasRenderingContext2D, bx: number, by: number,
+    rect: Rect, color: string, width: number) {
+    let size = Math.min(rect.width, rect.height)/2;
+    let center = rect.center();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(bx+center.x-size, by+center.y+size);
+    ctx.lineTo(bx+center.x+size, by+center.y-size);
+    ctx.moveTo(bx+center.x-size, by+center.y-size);
+    ctx.lineTo(bx+center.x+size, by+center.y+size);
+    ctx.stroke();
+}
+
+function drawProhibited(
+    ctx: CanvasRenderingContext2D, bx: number, by: number,
+    rect: Rect, color: string, width: number) {
+    let size = Math.min(rect.width, rect.height)/2;
+    let center = rect.center();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.arc(bx+center.x, by+center.y, size, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.moveTo(bx+center.x-size, by+center.y+size);
+    ctx.lineTo(bx+center.x+size, by+center.y-size);
+    ctx.stroke();
 }
 
 function unionRects(rects: Rect[]) {
@@ -198,6 +229,8 @@ class Product extends Entity {
     rot90: boolean = false;
     realsize: boolean = false;
     acceptable: boolean = false;
+    trashable: boolean = false;
+    trashed: boolean = false;
 
     constructor(customer: Customer, color: string, size: Vec2) {
 	super(new Vec2());
@@ -214,11 +247,13 @@ class Product extends Entity {
 		      this.pos.expand(size.x, size.y));
 	fillRect(ctx, bx, by, bounds.move(2,2), 'rgb(32,32,32)');
 	super.render(ctx, bx, by);
-	if (this.isFocused()) {
-	    drawRect(ctx, bx, by, this.getBounds().getAABB().inflate(4,4), 'white', 2);
-	}
+	let rect = this.getBounds().getAABB().inflate(4,4);
 	if (this.realsize && !this.acceptable) {
-	    drawRect(ctx, bx, by, this.getBounds().getAABB().inflate(2,2), 'red', 1);
+	    drawProhibited(ctx, bx, by, rect, 'red', 4);
+	} else if (this.trashed) {
+	    drawCross(ctx, bx, by, rect, 'red', 2);
+	} else if (this.isFocused()) {
+	    drawRect(ctx, bx, by, rect, 'white', 2);
 	}
     }
 
@@ -306,8 +341,9 @@ class ProductIcecream extends Product {
     }
 }
 class ProductBeer extends Product {
-    constructor(customer: Customer) {
+    constructor(customer: Customer, trashable=false) {
 	super(customer, 'rgb(160,80,0)', new Vec2(1,3));
+	this.trashable = trashable;
 	this.price = (rnd(2) == 0)? 5 : 10;
 	this.name = 'beer';
     }
@@ -340,7 +376,6 @@ class Customer extends Entity {
     extra: number = 16;
     space: number = 8;
     speed: number = 2;
-    minor: boolean = false;
     
     constructor(spriteno: number) {
 	super(new Vec2());
@@ -369,6 +404,8 @@ class Customer extends Entity {
     }
 
     walk() {
+	let balloon = new Balloon(this.pos.move(-8,0), this.angry? 'BOO!' : 'YAY!');
+	this.layer.addTask(balloon);
 	this.walking = true;
     }
 
@@ -405,11 +442,10 @@ class Customer extends Entity {
     }
 }
 
-class Customer1 extends Customer {
+class CustomerKid extends Customer {
     constructor() {
 	super(1+rnd(2));	// kids
 	this.space = 2+rnd(6);
-	this.minor = true;
 	this.extra = 32;
     }
 
@@ -428,15 +464,16 @@ class Customer1 extends Customer {
 		products.push(new ProductIcecream(this));
 		break;
 	    case 3:
-		products.push(new ProductBeer(this));
+		products.push(new ProductBeer(this, true));
 		break;
 	    }
 	}
+	products = [ new ProductBeer(this, true)];
 	return products;
     }
 }
 
-class Customer2 extends Customer {
+class CustomerOld extends Customer {
     constructor() {
 	super(3+rnd(2));	// old people
 	this.space = 2+rnd(4);
@@ -462,7 +499,7 @@ class Customer2 extends Customer {
     }
 }
 
-class Customer3 extends Customer {
+class CustomerYoung extends Customer {
     constructor() {
 	super(5+rnd(2));	// young people
 	this.space = 4+rnd(4);
@@ -489,7 +526,7 @@ class Customer3 extends Customer {
     }
 }
 
-class Customer4 extends Customer {
+class CustomerAdult extends Customer {
     constructor() {
 	super(7+rnd(2));	// adult
 	this.space = 4;
@@ -529,6 +566,7 @@ class Game extends GameScene {
     prodBox: TextBox;
     statusBox: TextBox;
     priceBox: DialogBox;
+    trash: Trash;
 
     gameOver: boolean = false;
     health: number = 3;
@@ -541,6 +579,7 @@ class Game extends GameScene {
     constructor(app: App) {
 	super(app);
 	FONT = new Font(APP.images['font'], 'white');
+	BIGFONT = new Font(APP.images['font'], 'red', 2);
 	COLORFONT = new Font(APP.images['font'], null);
 	SHFONT = new ShadowFont(APP.images['font'], 'white');
 	HIFONT = new InvertedFont(APP.images['font'], 'white');
@@ -562,9 +601,8 @@ class Game extends GameScene {
 	this.priceBox.linespace = 4;
 	this.priceBox.background = 'rgba(0,0,0,0.5)'
 	this.priceBox.start(this.layer);
-	this.layer.clicked.subscribe((_,sprite) => {
-	    log("click:", sprite);
-	});
+
+	this.trash = new Trash(new Vec2(250, 220));
     }
     
     startPos: Vec2 = null;
@@ -596,14 +634,21 @@ class Game extends GameScene {
 	} else if (this.priceBox.visible) {
 	    this.priceBox.mouseup(p, button);
 	} else if (button == 0) {
-	    if (this.startPos !== null && this.startPos.equals(p)) {
-		let sprite = this.layer.mouseActive;
-		if (sprite instanceof Product) {
+	    let sprite = this.layer.mouseActive;
+	    if (sprite instanceof Product) {
+		if (this.startPos !== null && this.startPos.equals(p)) {
 		    sprite.rotate();
 		    playSound(APP.audios['put']);
 		}
+		if (sprite.trashable && sprite.trashed) {
+		    sprite.stop();
+		    removeElement(this.products, sprite);
+		}
 	    }
-	    this.checkProducts(true);
+	    let ok = this.checkConstraints();
+	    if (ok) {
+		this.checkFinished();
+	    }
 	    this.prevPos = null;
 	    this.layer.mouseup(p, button);
 	}
@@ -613,8 +658,17 @@ class Game extends GameScene {
 	if (this.priceBox.visible) {
 	    this.priceBox.mousemove(p);
 	} else {
+	    let sprite = this.layer.mouseActive;
+	    if (sprite instanceof Product) {
+		if (sprite.trashable) {
+		    let trashed = (this.layer.findSpriteAt(p) === this.trash);
+		    if (sprite.trashed != trashed) {
+			sprite.trashed = trashed;
+			playSound(APP.audios['put']);
+		    }
+		}
+	    }
 	    if (this.prevPos !== null) {
-		let sprite = this.layer.mouseActive;
 		if (sprite instanceof Product) {
 		    sprite.move(p.sub(this.prevPos));
 		}
@@ -629,7 +683,7 @@ class Game extends GameScene {
 
 	this.prodBox.clear();
 	this.priceBox.visible = false;
-	this.add(new Trash(new Vec2(250, 220)));
+	this.add(this.trash);
 
 	this.gameOver = false;
 	this.health = 3;
@@ -638,9 +692,9 @@ class Game extends GameScene {
 	this.nextcust = 0;
 	
 	this.customers = [];
-	this.addCustomer(new Customer2(), false);
-	this.addCustomer(new Customer3(), false);
-	this.addCustomer(new Customer1(), false);
+	this.addCustomer(new CustomerOld(), false);
+	this.addCustomer(new CustomerYoung(), false);
+	this.addCustomer(new CustomerKid(), false);
 
 	let casher = new Sprite(new Vec2(60,30));
 	casher.imgsrc = SPRITES.get(0);
@@ -657,16 +711,18 @@ class Game extends GameScene {
 
     tick(t: number) {
 	super.tick(t);
-	this.checkProducts(false);
 	if (this.priceBox.visible) {
 	    this.priceBox.tick(t);
 	}
 	let customer = this.getCustomer();
 	if (customer !== null) {
+	    this.checkConstraints();
 	    if (customer.isSessionStarted()) {
 		let t = customer.getTimeLeft();
 		if (t <= 0) {
-		    this.endSession(customer, false);
+		    customer.angry = true;
+		    this.endSession(customer);
+		    this.madeMistake('timeout');
 		} else if (t < this.nextbeep) {
 		    playSound(APP.audios['beep']);
 		    this.nextbeep -= 1;
@@ -681,16 +737,16 @@ class Game extends GameScene {
 		let n = (this.score < 50)? 3 : 4;
 		switch (rnd(n)) {
 		case 0:
-		    this.addCustomer(new Customer1(), true);
+		    this.addCustomer(new CustomerKid(), true);
 		    break;
 		case 1:
-		    this.addCustomer(new Customer2(), true);
+		    this.addCustomer(new CustomerOld(), true);
 		    break;
 		case 2:
-		    this.addCustomer(new Customer3(), true);
+		    this.addCustomer(new CustomerYoung(), true);
 		    break;
 		default:
-		    this.addCustomer(new Customer4(), true);
+		    this.addCustomer(new CustomerAdult(), true);
 		    break;
 		}
 	    }
@@ -707,7 +763,7 @@ class Game extends GameScene {
 	let customer = this.getCustomer();
 	// draw a basket.
 	if (customer !== null && customer.isSessionStarted()) {
-	    drawRect(ctx, bx, by, customer.basket.inflate(4,4), 'black', 4);
+	    drawRect(ctx, bx, by, customer.basket, 'black', 4);
 	}
 	super.render(ctx, bx, by);
 	this.prodBox.render(ctx, bx, by);
@@ -771,7 +827,7 @@ class Game extends GameScene {
 	playSound(APP.audios['start']);
     }
 
-    endSession(customer: Customer, success: boolean) {
+    endSession(customer: Customer) {
 	assert(customer.isSessionStarted());
 	this.priceBox.visible = false;
 	for (let product of this.products) {
@@ -779,25 +835,13 @@ class Game extends GameScene {
 	}
 	this.products = [];
 	this.prodBox.clear();
-	customer.angry = !success;
 	customer.walk();
 	removeElement(this.customers, customer);
-	if (!success) {
-	    playSound(APP.audios['wrong']);
-	    this.health--;
-	    this.updateStatus();
-	    if (this.health == 0) {
-		this.showGameOver();
-	    }
-	}
-	let balloon = new Balloon(customer.pos.move(-8,0), success? 'YAY!' : 'BOO!');
-	this.add(balloon);
-    }	
+    }
 
     openPriceBox() {
 	this.priceBox.clear();
 	this.priceBox.addDisplay('TOTAL PRICE?\n');
-	// TODO: add Tax
 	let n = 5;
 	let menu = this.priceBox.addMenu();
 	let list: string[] = [];
@@ -818,14 +862,16 @@ class Game extends GameScene {
 		    playSound(APP.audios['chachin']);
 		    let balloon = new Balloon(new Vec2(60,this.screen.height-10), '+$'+total);
 		    this.add(balloon);
+		} else {
+		    customer.angry = true;
+		    this.madeMistake('wrong');
 		}
-		this.endSession(customer, value == 0);
+		this.endSession(customer);
 	    }
 	});
     }
 
-    checkProducts(finish: boolean) {
-	if (this.products.length == 0) return;
+    checkConstraints() {
 	let ok = true;
 	for (let product of this.products) {
 	    let rect = product.getCollider() as Rect;
@@ -845,12 +891,53 @@ class Game extends GameScene {
 		}
 	    }
 	});
-	if (ok && finish && !this.priceBox.visible) {
+	return ok;
+    }
+
+    checkFinished() {
+	for (let product of this.products) {
+	    if (product.trashable) {
+		this.endSession(product.customer);
+		this.madeMistake('illegal');
+		return;
+	    }
+	}
+	// after trashing all the beers, we get empty product list.
+	if (this.products.length == 0) {
+	    let customer = this.getCustomer();
+	    if (customer !== null) {
+		this.endSession(customer);
+		return;
+	    }
+	}
+	if (!this.priceBox.visible) {
 	    this.priceBox.visible = true;
 	    this.openPriceBox();
 	}
     }
 
+    madeMistake(reason: string) {
+	if (reason == 'timeout') {
+	    playSound(APP.audios['timeout']);
+	} else {
+	    playSound(APP.audios['buzz']);
+	}
+	if (reason == 'illegal') {
+	    let banner = new TextBox(this.screen.resize(220, 60));
+	    banner.font = BIGFONT;
+	    banner.background = 'rgba(0,0,0,0.5)'
+	    banner.lifetime = 2;
+	    banner.linespace = 8;
+	    banner.putText(['NO ALCOHOL','FOR MINOR!'], 'center', 'center');
+	    this.add(banner);
+	}
+	this.health--;
+	this.updateStatus();
+	if (this.health == 0) {
+	    this.showGameOver();
+	}
+    }	
+    
     showGameOver() {
 	let banner = new TextBox(this.screen.resize(200, 24));
 	banner.font = FONT;
