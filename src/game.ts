@@ -345,28 +345,28 @@ class ProductCabbage extends Product {
     constructor(customer: Customer) {
 	super(customer, 'rgb(140,255,100)', new Vec2(2,2));
 	this.price = rnd(5, 10);
-	this.name = 'cabbage';
+	this.name = 'Cabbage';
     }
 }
 class ProductMeat extends Product {
     constructor(customer: Customer) {
 	super(customer, 'rgb(255,100,100)', new Vec2(1,2));
 	this.price = rnd(5, 10);
-	this.name = 'meat';
+	this.name = 'Meat';
     }
 }
 class ProductChocolate extends Product {
     constructor(customer: Customer) {
 	super(customer, 'rgb(96,32,0)', new Vec2(1,1));
 	this.price = 5;
-	this.name = 'chocolt';
+	this.name = 'Chocolt';
     }
 }
 class ProductIcecream extends Product {
     constructor(customer: Customer) {
 	super(customer, 'white', new Vec2(1,2));
 	this.price = 10;
-	this.name = 'icecrem';
+	this.name = 'Icecrem';
     }
 }
 class ProductBeer extends Product {
@@ -374,21 +374,21 @@ class ProductBeer extends Product {
 	super(customer, 'rgb(160,80,0)', new Vec2(1,3));
 	this.trashable = trashable;
 	this.price = (rnd(2) == 0)? 5 : 10;
-	this.name = 'beer';
+	this.name = 'Beer';
     }
 }
 class ProductCereal extends Product {
     constructor(customer: Customer) {
 	super(customer, 'rgb(255,200,0)', new Vec2(2,3));
 	this.price = rnd(5, 10);
-	this.name = 'cereal';
+	this.name = 'Cereal';
     }
 }
 class ProductLiquor extends Product {
     constructor(customer: Customer) {
 	super(customer, 'rgb(150,180,180)', new Vec2(1,3));
 	this.price = rnd(10, 20);
-	this.name = 'liquor';
+	this.name = 'Wine';
     }
 }
 
@@ -473,30 +473,41 @@ class Customer extends Entity {
 }
 
 class CustomerKid extends Customer {
-    constructor() {
+    wantBooze: boolean;
+    
+    constructor(wantBooze=false) {
 	super(1+rnd(2));	// kids
+	this.wantBooze = wantBooze;
 	this.space = 2+rnd(6);
 	this.extra = 32;
 	this.basketColor = 'rgb(0,200,200)';
     }
 
     getProducts() {
-	this.patience = 5;
-	let n = 1+rnd(3);
 	let products: Product[] = []
-	for (let i = 0; i < n; i++) {
-	    this.patience += 5;
-	    switch (rnd(4)) {
-	    case 0:
-	    case 1:
-		products.push(new ProductChocolate(this));
-		break;
-	    case 2:
-		products.push(new ProductIcecream(this));
-		break;
-	    case 3:
-		products.push(new ProductBeer(this, true));
-		break;
+	if (this.wantBooze) {
+	    this.patience = 15;
+	    products = [
+		new ProductChocolate(this),
+		new ProductBeer(this, true),
+	    ];
+	} else {
+	    this.patience = 5;
+	    let n = 1+rnd(3);
+	    for (let i = 0; i < n; i++) {
+		this.patience += 5;
+		switch (rnd(4)) {
+		case 0:
+		case 1:
+		    products.push(new ProductChocolate(this));
+		    break;
+		case 2:
+		    products.push(new ProductIcecream(this));
+		    break;
+		case 3:
+		    products.push(new ProductBeer(this, true));
+		    break;
+		}
 	    }
 	}
 	return products;
@@ -608,6 +619,7 @@ class Game extends GameScene {
     nextbeep: number = 0;
     customers: Customer[] = [];
     products: Product[] = [];
+    explainKids: boolean = false;
     
     constructor(app: App) {
 	super(app);
@@ -674,6 +686,7 @@ class Game extends GameScene {
 		    playSound(APP.audios['put']);
 		}
 		if (sprite.trashable && sprite.trashed) {
+		    playSound(APP.audios['put']);
 		    sprite.stop();
 		    removeElement(this.products, sprite);
 		}
@@ -727,7 +740,7 @@ class Game extends GameScene {
 	this.customers = [];
 	this.addCustomer(new CustomerOld(), false);
 	this.addCustomer(new CustomerYoung(), false);
-	this.addCustomer(new CustomerKid(), false);
+	this.addCustomer(new CustomerKid(!this.explainKids), false);
 
 	let casher = new Sprite(new Vec2(60,30));
 	casher.imgsrc = SPRITES.get(0);
@@ -738,7 +751,7 @@ class Game extends GameScene {
 	banner.font = FONT;
 	banner.background = 'rgba(0,0,0,0.5)'
 	banner.lifetime = 3;
-	banner.putText(['DRAG PRODUCTS INTO BASKET!'], 'center', 'center');
+	banner.putText(['Drag products into basket!'], 'center', 'center');
 	this.add(banner);
     }
 
@@ -817,14 +830,6 @@ class Game extends GameScene {
 	this.statusBox.render(ctx, bx, by);
     }
 
-    updateStatus() {
-	this.statusBox.clear();
-	this.statusBox.putText(['TOTAL $'+this.score],
-			       'left', 'bottom');
-	this.statusBox.putText([multiply('\x7f', this.health)],
-			       'right', 'bottom', COLORFONT);
-    }
-    
     getCustomer() {
 	if (0 < this.customers.length) {
 	    return this.customers[0];
@@ -847,6 +852,17 @@ class Game extends GameScene {
     
     startSession(customer: Customer) {
 	assert(!customer.isSessionStarted());
+	if (customer instanceof CustomerKid) {
+	    if (!this.explainKids && customer.wantBooze) {
+		let banner = new TextBox(this.screen.resize(220, 48));
+		banner.font = FONT;
+		banner.background = 'rgba(0,0,0,0.5)'
+		banner.lifetime = 3;
+		banner.linespace = 4;
+		banner.putText(["No beer for kids.","Put it into trash!"], 'center', 'center');
+		this.add(banner);
+	    }
+	}
 	let pos = new Vec2(240, 70);
 	this.products = customer.startSession();
 	for (let product of this.products) {
@@ -874,7 +890,7 @@ class Game extends GameScene {
 
     openPriceBox() {
 	this.priceBox.clear();
-	this.priceBox.addDisplay('TOTAL PRICE?\n');
+	this.priceBox.addDisplay('Total price?\n');
 	let n = 5;
 	let menu = this.priceBox.addMenu();
 	let list: string[] = [];
@@ -949,6 +965,14 @@ class Game extends GameScene {
 	}
     }
 
+    updateStatus() {
+	this.statusBox.clear();
+	this.statusBox.putText(['SALES: $'+this.score],
+			       'left', 'bottom');
+	this.statusBox.putText([multiply('\x7f', this.health)],
+			       'right', 'bottom', COLORFONT);
+    }
+    
     madeMistake(reason: string) {
 	if (reason == 'timeout') {
 	    playSound(APP.audios['timeout']);
