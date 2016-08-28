@@ -166,7 +166,7 @@ class Balloon extends TextBox {
 	super(new Rect(-20, -5, 40, 10));
 	this.pos = pos;
 	this.font = FONT;
-	this.lifetime = 2;
+	this.lifetime = 1;
 	this.putText([text], 'center', 'center');
     }
 
@@ -214,7 +214,11 @@ class Product extends Entity {
 
     move(v: Vec2) {
 	this.moveIfPossible(v);
-	this.realsize = this.customer.basket.containsPt(this.pos);
+	let realsize = this.customer.basket.containsPt(this.pos);
+	if (this.realsize != realsize) {
+	    this.realsize = realsize;
+	    playSound(APP.audios['put']);
+	}
 	this.updateShape();
     }
 
@@ -414,6 +418,7 @@ class Game extends GameScene {
     health: number = 3;
     score: number = 0;
     nextcust: number = 0;
+    nextbeep: number = 0;
     customers: Customer[] = [];
     products: Product[] = [];
     
@@ -542,8 +547,12 @@ class Game extends GameScene {
 	let customer = this.getCustomer();
 	if (customer !== null) {
 	    if (customer.isSessionStarted()) {
-		if (customer.getTimeLeft() <= 0) {
+		let t = customer.getTimeLeft();
+		if (t <= 0) {
 		    this.endSession(customer, false);
+		} else if (t < this.nextbeep) {
+		    playSound(APP.audios['beep']);
+		    this.nextbeep -= 1;
 		}
 	    } else if (customer.isReadyForSession()) {
 		this.startSession(customer);
@@ -593,7 +602,7 @@ class Game extends GameScene {
 	// draw the indicator.
 	if (customer !== null && customer.isSessionStarted()) {
 	    let t = lowerbound(0, customer.getTimeLeft());
-	    ctx.fillStyle = 'rgb(0,255,0)';
+	    ctx.fillStyle = (t < 5)? 'red' : 'rgb(0,255,0)';
 	    ctx.fillRect(bx+32, by+4, t*8, 8);
 	}
 	// draw status.
@@ -639,6 +648,8 @@ class Game extends GameScene {
 	    this.prodBox.addSegment(pos.move(20, 0), '$'+product.price);
 	    pos = pos.move(0, 20);
 	}
+	this.nextbeep = 5;
+	playSound(APP.audios['start']);
     }
 
     endSession(customer: Customer, success: boolean) {
@@ -651,16 +662,17 @@ class Game extends GameScene {
 	this.prodBox.clear();
 	customer.angry = !success;
 	customer.walk();
-	let balloon = new Balloon(customer.pos.move(-8,0), success? 'YAY!' : 'BOO!');
-	this.add(balloon);
 	removeElement(this.customers, customer);
 	if (!success) {
+	    playSound(APP.audios['wrong']);
 	    this.health--;
 	    this.updateStatus();
 	    if (this.health == 0) {
 		this.showGameOver();
 	    }
 	}
+	let balloon = new Balloon(customer.pos.move(-8,0), success? 'YAY!' : 'BOO!');
+	this.add(balloon);
     }	
 
     openPriceBox() {
@@ -685,6 +697,9 @@ class Game extends GameScene {
 		if (value == 0) {
 		    this.score += total;
 		    this.updateStatus();
+		    playSound(APP.audios['chachin']);
+		    let balloon = new Balloon(new Vec2(70,this.screen.height-10), '$'+total);
+		    this.add(balloon);
 		}
 		this.endSession(customer, value == 0);
 	    }

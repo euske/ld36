@@ -1,4 +1,10 @@
 
+ * background
+ * music
+ * product picture
+ * trash bin
+ * alcohol
+
 Title: The (Ancient) Casher
 
 Puzzle game?
