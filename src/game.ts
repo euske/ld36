@@ -11,6 +11,12 @@ let SPRITES: SpriteSheet;
 let FONT: Font;
 let SHFONT: Font;
 let HIFONT: Font;
+const PLACERECT = new Rect(0, 54, 220, 186);
+const LANERECT = new Rect(0, 0, 320, 50);
+const PRODRECT = new Rect(220, 54, 100, 186);
+const CUSTOMERS_INIT = 3;
+const CUSTOMERS_MAX = 8;
+
 
 function fillRect(
     ctx: CanvasRenderingContext2D, bx: number, by: number,
@@ -25,6 +31,109 @@ function drawRect(
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+}
+
+function unionRects(rects: Rect[]) {
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (let rect of rects) {
+	x0 = Math.min(x0, rect.x);
+	x1 = Math.max(x1, rect.right());
+	y0 = Math.min(y0, rect.y);
+	y1 = Math.max(y1, rect.bottom());
+    }
+    if (x1 < x0 || y1 < y0) {
+	return new Rect();
+    } else {
+	return new Rect(x0, y0, x1-x0, y1-y0);
+    }
+}
+
+
+//  Board
+// 
+class Board {
+    
+    rects: Rect[] = []
+
+    getBounds() {
+	return unionRects(this.rects);
+    }
+
+    hasOverlap(rect0: Rect) {
+	for (let rect1 of this.rects) {
+	    if (rect1.overlapsRect(rect0)) {
+		return true;
+	    }
+	}
+	return false;
+    }
+
+    getFitting(w: number, h: number) {
+	let bounds = this.getBounds();
+	for (let y = bounds.y; y < bounds.bottom(); y++) {
+	    for (let x = bounds.x; x < bounds.right(); x++) {
+		let rect0 = new Rect(x,y,w,h);
+		if (bounds.containsRect(rect0) && !this.hasOverlap(rect0)) {
+		    return rect0;
+		}
+		let rect1 = new Rect(x,y,h,w);
+		if (bounds.containsRect(rect1) && !this.hasOverlap(rect1)) {
+		    return rect1;
+		}
+	    }
+	}
+	let sizes = [
+	    Math.max(bounds.width+w, h),  // 0
+	    Math.max(bounds.width+h, w),  // 1 
+	    Math.max(w, bounds.height+h), // 2
+	    Math.max(h, bounds.height+w), // 3
+	];
+	let minconf = 0;
+	for (let conf = 1; conf < sizes.length; conf++) {
+	    if (sizes[conf] < sizes[minconf]) {
+		minconf = conf;
+	    }
+	}
+	switch (minconf) {
+	case 0:
+	    return new Rect(bounds.right(), bounds.y, w, h);
+	case 1:
+	    return new Rect(bounds.right(), bounds.y, h, w);
+	case 2:
+	    return new Rect(bounds.x, bounds.bottom(), h, w);
+	default:
+	    return new Rect(bounds.x, bounds.bottom(), w, h);
+	}
+    }
+    
+    dump() {
+	let bounds = this.getBounds();
+	log('rects='+this.rects+', bounds='+bounds);
+	for (let y = bounds.y; y < bounds.bottom(); y++) {
+	    let line = '';
+	    for (let x = bounds.x; x < bounds.right(); x++) {
+		let v = 0;
+		let p = new Vec2(x,y);
+		for (let i = 0; i < this.rects.length; i++) {
+		    if (this.rects[i].containsPt(p)) {
+			v = i+1;
+			break;
+		    }
+		}
+		line += v.toString();
+	    }
+	    log(' '+y+': '+line);
+	}
+    }
+    
+    add(size: Vec2) {
+	let rect = this.getFitting(size.x, size.y);
+	this.rects.push(rect);
+	return (size.x != rect.width || size.y != rect.height);
+    }
 }
 
 
@@ -66,16 +175,17 @@ class Product extends Entity {
     customer: Customer;
     price: number = 10;
     name: string = 'thing';
-    size: Vec2 = new Vec2(10,10);
+    size: Vec2 = new Vec2(1,1);
     
     rot90: boolean = false;
     realsize: boolean = false;
     acceptable: boolean = false;
 
-    constructor(customer: Customer, color: string) {
+    constructor(customer: Customer, color: string, size: Vec2) {
 	super(new Vec2());
 	this.mouseSelectable = true;
 	this.customer = customer;
+	this.size = size;
 	this.imgsrc = new FillImageSource(color, new Rect());
     }
 
@@ -96,6 +206,8 @@ class Product extends Entity {
 
     move(v: Vec2) {
 	this.moveIfPossible(v);
+	this.pos.x = int(this.pos.x);
+	this.pos.y = int(this.pos.y);
 	this.realsize = this.customer.basket.containsPt(this.pos);
 	this.updateShape();
     }
@@ -105,8 +217,15 @@ class Product extends Entity {
 	this.updateShape();
     }
 
+    getSize() {
+	return (this.realsize)? this.size.scale(16) : this.size.scale(4);
+    }
+
     getBounds() {
-	let bounds = super.getBounds();
+	let size = this.getSize();
+	let bounds = ((this.rot90)?
+		      this.pos.expand(size.y, size.x) :
+		      this.pos.expand(size.x, size.y));
 	if (!this.realsize) {
 	    bounds = bounds.inflate(2,2);
 	}
@@ -114,7 +233,7 @@ class Product extends Entity {
     }
     
     updateShape() {
-	let size = (this.realsize)? this.size : this.size.scale(0.3);
+	let size = this.getSize();
 	if (this.rot90) {
 	    this.rotation = Math.PI/2;
 	    this.collider = new Rect(-size.y/2, -size.x/2, size.y, size.x);
@@ -135,26 +254,23 @@ class Product extends Entity {
 
 class Product1 extends Product {
     constructor(customer: Customer) {
-	super(customer, 'green');
+	super(customer, 'green', new Vec2(1,2));
 	this.price = rnd(10, 20);
-	this.name = 'vege.';
-	this.size = new Vec2(80, 20);
+	this.name = 'veg.';
     }
 }
 class Product2 extends Product {
     constructor(customer: Customer) {
-	super(customer, 'red');
+	super(customer, 'red', new Vec2(1,1));
 	this.price = rnd(5, 10);
 	this.name = 'apple';
-	this.size = new Vec2(15, 15);
     }
 }
 class Product3 extends Product {
     constructor(customer: Customer) {
-	super(customer, 'rgb(128,64,0)');
+	super(customer, 'rgb(128,64,0)', new Vec2(1,3));
 	this.price = rnd(5, 10);
 	this.name = 'beer';
-	this.size = new Vec2(15, 50);
     }
 }
 
@@ -163,13 +279,11 @@ class Product3 extends Product {
 //
 class Customer extends Entity {
 
-    static placeRect: Rect = new Rect(0, 54, 220, 186);
-    
     sessionStart: number = -1;
     walking: boolean = false;
     angry: boolean = false;
+    basket: Rect = null;
     patience: number = 0;
-    basket: Rect;
     space: number;
     speed: number;
     
@@ -177,7 +291,6 @@ class Customer extends Entity {
 	super(pos);
 	this.imgsrc = new FillImageSource('yellow', new Rect(-8,-8,16,16));
 	this.collider = this.imgsrc.dstRect;
-	this.basket = Customer.placeRect.resize(100+rnd(100), 80+rnd(100));
 	this.space = 8+rnd(8);
 	this.speed = 2+rnd(4);
     }
@@ -220,7 +333,7 @@ class Customer extends Entity {
     startSession() {
 	this.sessionStart = this.time;
 	this.patience = 5+rnd(10);
-	let n = rnd(1,5);
+	let n = 2+rnd(5);
 	let products: Product[] = []
 	for (let i = 0; i < n; i++) {
 	    this.patience += rnd(5);
@@ -236,6 +349,13 @@ class Customer extends Entity {
 		break;
 	    }
 	}
+	let board = new Board();
+	for (let product of products) {
+	    product.rot90 = board.add(product.size);
+	    board.dump();
+	}
+	let bounds = board.getBounds();
+	this.basket = PLACERECT.resize(32+bounds.width*16, 32+bounds.height*16);
 	return products;
     }
 }
@@ -253,8 +373,6 @@ class Game extends GameScene {
     nextcust: number = 0;
     customers: Customer[] = [];
     products: Product[] = [];
-    laneRect: Rect = new Rect(0, 0, 320, 50);
-    prodRect: Rect = new Rect(220, 54, 100, 186);
     
     constructor(app: App) {
 	super(app);
@@ -265,7 +383,7 @@ class Game extends GameScene {
 	this.prodBox = new TextBox(this.screen);
 	this.prodBox.font = SHFONT;
 
-	this.statusBox = new TextBox(this.prodRect.move(0,-24));
+	this.statusBox = new TextBox(PRODRECT.move(0,-24));
 	this.statusBox.font = SHFONT;
 	this.statusBox.padding = 8;
 	
@@ -346,7 +464,7 @@ class Game extends GameScene {
 	this.score = 0;
 	this.updateScore();
 	this.nextcust = 0;
-	this.initCustomers(3);
+	this.initCustomers(CUSTOMERS_INIT);
 
 	let banner = new TextBox(this.screen.resize(220, 24));
 	banner.font = new Font(APP.images['font'], 'white');
@@ -374,7 +492,7 @@ class Game extends GameScene {
 	}
 	if (this.nextcust < t) {
 	    this.nextcust = t+rnd(1, 5);
-	    if (this.customers.length < 8) {
+	    if (this.customers.length < CUSTOMERS_MAX) {
 		this.addCustomer(true);
 	    }
 	}
@@ -383,9 +501,9 @@ class Game extends GameScene {
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
 	ctx.fillStyle = 'rgb(0,0,0)';
 	ctx.fillRect(bx, by, this.screen.width, this.screen.height);
-	fillRect(ctx, bx, by, this.laneRect, 'rgb(32,128,220)');
-	fillRect(ctx, bx, by, this.prodRect, 'rgb(160,200,40)');
-	fillRect(ctx, bx, by, Customer.placeRect, 'gray');
+	fillRect(ctx, bx, by, LANERECT, 'rgb(32,128,220)');
+	fillRect(ctx, bx, by, PRODRECT, 'rgb(160,200,40)');
+	fillRect(ctx, bx, by, PLACERECT, 'gray');
 
 	let customer = this.getCustomer();
 	// draw a basket.

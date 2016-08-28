@@ -312,7 +312,7 @@ class Rect implements Shape {
     }
     
     containsPt(p: Vec2) {
-	return (this.x < p.x && this.y < p.y &&
+	return (this.x <= p.x && this.y <= p.y &&
 		p.x < this.x+this.width && p.y < this.y+this.height);
     }
     
@@ -787,9 +787,9 @@ class Box {
     
     containsPt(p: Vec3) {
 	return (this.origin.x <= p.x && this.origin.y <= p.y && this.origin.z <= p.z &&
-		p.x <= this.origin.x+this.size.x &&
-		p.y <= this.origin.y+this.size.y &&
-		p.z <= this.origin.z+this.size.z);
+		p.x < this.origin.x+this.size.x &&
+		p.y < this.origin.y+this.size.y &&
+		p.z < this.origin.z+this.size.z);
     }
     
     overlapsBox(box: Box) {

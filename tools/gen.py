@@ -63,12 +63,16 @@ class B:
                         break
                 if ok:
                     return (x,y,h,w)
-        if w0 < h0:
+        if w0+w <= h0:
             # increase width
-            return (w0,0,min(w,h),max(w,h))
+            return (w0,0,w,h)
+        elif w0+h <= h0:
+            return (w0,0,h,w)
+        elif h0+h <= w0:
+            return (0,h0,w,h)
         else:
-            # increase height
-            return (0,h0,max(w,h),min(w,h))
+            #assert h0+w <= w0, (h0,w0,h,w)
+            return (0,h0,h,w)
     def add(self, name, size):
         conf = self.get_conf(size)
         self.objs.append(C(name, conf))
