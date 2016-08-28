@@ -8,6 +8,7 @@
 ///  game.ts
 ///
 let SPRITES: SpriteSheet;
+let PRODUCTS: SpriteSheet;
 let FONT: Font;
 let BIGFONT: Font;
 let COLORFONT: Font;
@@ -32,6 +33,21 @@ function fillRect(
     rect: Rect, color: string) {
     ctx.fillStyle = color;
     ctx.fillRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+}
+
+function fillOval(
+    ctx: CanvasRenderingContext2D, bx: number, by: number,
+    rect: Rect, color: string) {
+    let center = rect.center();
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.scale(1.0, rect.height/rect.width);
+    ctx.beginPath();
+    ctx.arc(0, 0, rect.width/2, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
 }
 
 function drawRect(
@@ -261,12 +277,11 @@ class Product extends Entity {
     trashable: boolean = false;
     trashed: boolean = false;
 
-    constructor(customer: Customer, color: string, size: Vec2) {
+    constructor(customer: Customer, size: Vec2) {
 	super(new Vec2());
 	this.mouseSelectable = true;
 	this.customer = customer;
 	this.size = size;
-	this.imgsrc = new FillImageSource(color, new Rect());
     }
 
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
@@ -274,7 +289,7 @@ class Product extends Entity {
 	let bounds = ((this.rot90)?
 		      this.pos.expand(size.y, size.x) :
 		      this.pos.expand(size.x, size.y));
-	fillRect(ctx, bx, by, bounds.move(2,2), 'rgb(32,32,32)');
+	this.renderShadow(ctx, bx, by, bounds.move(2,2));
 	super.render(ctx, bx, by);
 	let rect = this.getBounds().getAABB().inflate(4,4);
 	if (this.realsize && !this.acceptable) {
@@ -284,6 +299,10 @@ class Product extends Entity {
 	} else if (this.isFocused()) {
 	    drawRect(ctx, bx, by, rect, 'white', 2);
 	}
+    }
+
+    renderShadow(ctx: CanvasRenderingContext2D, bx: number, by: number, bounds: Rect) {
+	fillRect(ctx, bx, by, bounds, 'rgb(64,64,64)');
     }
 
     start(layer: Layer) {
@@ -343,52 +362,74 @@ class Product extends Entity {
 
 class ProductCabbage extends Product {
     constructor(customer: Customer) {
-	super(customer, 'rgb(140,255,100)', new Vec2(2,2));
+	super(customer, new Vec2(2,2));
 	this.price = rnd(5, 10);
 	this.name = 'Cabbage';
+	this.imgsrc = PRODUCTS.get(1,0,2,2);
+    }
+    renderShadow(ctx: CanvasRenderingContext2D, bx: number, by: number, bounds: Rect) {
+	fillOval(ctx, bx, by, bounds, 'rgb(64,64,64)');
     }
 }
 class ProductMeat extends Product {
     constructor(customer: Customer) {
-	super(customer, 'rgb(255,100,100)', new Vec2(1,2));
+	super(customer, new Vec2(1,2));
 	this.price = rnd(5, 10);
 	this.name = 'Meat';
+	this.imgsrc = PRODUCTS.get(3,0,1,2);
+    }
+    renderShadow(ctx: CanvasRenderingContext2D, bx: number, by: number, bounds: Rect) {
+	fillOval(ctx, bx, by, bounds, 'rgb(64,64,64)');
     }
 }
 class ProductChocolate extends Product {
     constructor(customer: Customer) {
-	super(customer, 'rgb(96,32,0)', new Vec2(1,1));
+	super(customer, new Vec2(1,1));
 	this.price = 5;
 	this.name = 'Chocolt';
+	this.imgsrc = PRODUCTS.get(0,0,1,1);
     }
 }
 class ProductIcecream extends Product {
     constructor(customer: Customer) {
-	super(customer, 'white', new Vec2(1,2));
+	super(customer, new Vec2(1,2));
 	this.price = 10;
 	this.name = 'Icecrem';
+	this.imgsrc = PRODUCTS.get(4,0,1,2);
+    }
+    renderShadow(ctx: CanvasRenderingContext2D, bx: number, by: number, bounds: Rect) {
+	fillRect(ctx, bx, by, bounds.inflate(-2,-2), 'rgb(64,64,64)');
     }
 }
 class ProductBeer extends Product {
     constructor(customer: Customer, trashable=false) {
-	super(customer, 'rgb(160,80,0)', new Vec2(1,3));
+	super(customer, new Vec2(1,3));
 	this.trashable = trashable;
 	this.price = (rnd(2) == 0)? 5 : 10;
 	this.name = 'Beer';
+	this.imgsrc = PRODUCTS.get(5,0,1,3);
+    }
+    renderShadow(ctx: CanvasRenderingContext2D, bx: number, by: number, bounds: Rect) {
+	fillOval(ctx, bx, by, bounds.inflate(-2,-2), 'rgb(64,64,64)');
     }
 }
 class ProductCereal extends Product {
     constructor(customer: Customer) {
-	super(customer, 'rgb(255,200,0)', new Vec2(2,3));
+	super(customer, new Vec2(2,3));
 	this.price = rnd(5, 10);
 	this.name = 'Cereal';
+	this.imgsrc = PRODUCTS.get(6,0,2,3);
     }
 }
-class ProductLiquor extends Product {
+class ProductWine extends Product {
     constructor(customer: Customer) {
-	super(customer, 'rgb(150,180,180)', new Vec2(1,3));
+	super(customer, new Vec2(1,3));
 	this.price = rnd(10, 20);
 	this.name = 'Wine';
+	this.imgsrc = PRODUCTS.get(8,0,1,3);
+    }
+    renderShadow(ctx: CanvasRenderingContext2D, bx: number, by: number, bounds: Rect) {
+	fillOval(ctx, bx, by, bounds.inflate(-2,-2), 'rgb(64,64,64)');
     }
 }
 
@@ -594,7 +635,7 @@ class CustomerAdult extends Customer {
 		products.push(new ProductCereal(this));
 		break;
 	    case 3:
-		products.push(new ProductLiquor(this));
+		products.push(new ProductWine(this));
 		break;
 	    }
 	}
@@ -628,8 +669,8 @@ class Game extends GameScene {
 	COLORFONT = new Font(APP.images['font'], null);
 	SHFONT = new ShadowFont(APP.images['font'], 'white');
 	HIFONT = new InvertedFont(APP.images['font'], 'white');
-	SPRITES = new ImageSpriteSheet(
-	    APP.images['sprites'], new Vec2(16,16), new Vec2(8,8));
+	SPRITES = new ImageSpriteSheet(APP.images['sprites'], new Vec2(16,16));
+	PRODUCTS = new ImageSpriteSheet(APP.images['products'], new Vec2(16,16));
 
 	this.prodBox = new TextBox(this.screen);
 	this.prodBox.font = SHFONT;
@@ -757,6 +798,7 @@ class Game extends GameScene {
 
     tick(t: number) {
 	super.tick(t);
+	if (this.gameOver) return;
 	if (this.priceBox.visible) {
 	    this.priceBox.tick(t);
 	}
@@ -780,8 +822,7 @@ class Game extends GameScene {
 	if (this.nextcust < t) {
 	    this.nextcust = t+rnd(1, 5);
 	    if (this.customers.length < CUSTOMERS_MAX) {
-		let n = (this.score < 50)? 3 : 4;
-		switch (rnd(n)) {
+		switch (rnd(4)) {
 		case 0:
 		    this.addCustomer(new CustomerKid(), true);
 		    break;
@@ -819,12 +860,14 @@ class Game extends GameScene {
 	    drawRect(ctx, bx, by, this.priceBox.frame.inflate(-2,-2), 'white', 2);
 	}
 	// draw the indicator.
-	if (customer !== null && customer.isSessionStarted()) {
-	    let t = lowerbound(0, customer.getTimeLeft());
-	    ctx.fillStyle = 'rgb(64,64,64)'
-	    ctx.fillRect(bx+33, by+5, t*8, 8);
-	    ctx.fillStyle = (t < 5)? 'red' : 'rgb(0,255,0)';
-	    ctx.fillRect(bx+32, by+4, t*8, 8);
+	if (!this.gameOver) {
+	    if (customer !== null && customer.isSessionStarted()) {
+		let t = lowerbound(0, customer.getTimeLeft());
+		ctx.fillStyle = 'rgb(64,64,64)'
+		ctx.fillRect(bx+33, by+5, t*8, 8);
+		ctx.fillStyle = (t < 5)? 'red' : 'rgb(0,255,0)';
+		ctx.fillRect(bx+32, by+4, t*8, 8);
+	    }
 	}
 	// draw status.
 	this.statusBox.render(ctx, bx, by);

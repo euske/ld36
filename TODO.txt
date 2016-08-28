@@ -1,5 +1,13 @@
 
- * product graphics
+ * product graphics (9x3)
+   1x1 chocolate
+   2x2 cabbage
+   1x2 meat
+   1x2 ice cream
+   1x3 beer
+   2x3 cereal
+   1x3 wine
+
  * music
  * difficulty tweaks
 
