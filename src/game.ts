@@ -145,16 +145,26 @@ class Board {
 }
 
 
-//  Button
+//  Trash
 //
-class Button extends Sprite {
-    
-    constructor(frame: Rect) {
-	super(frame.center());
+class Trash extends Sprite {
+
+    constructor(pos: Vec2) {
+	super(pos);
 	this.mouseSelectable = true;
-	this.imgsrc = new FillImageSource('white', frame.sub(this.pos));
+	this.imgsrc = SPRITES.get(9);
     }
     
+    getBounds() {
+	return this.pos.expand(24, 24);
+    }
+
+    render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
+	super.render(ctx, bx, by);
+	if (this.isFocused()) {
+	    drawRect(ctx, bx, by, this.getBounds().getAABB().inflate(4,4), 'white', 2);
+	}
+    }
 }
 
 
@@ -233,7 +243,7 @@ class Product extends Entity {
     }
 
     getSize() {
-	return (this.realsize)? this.size.scale(16) : this.size.scale(4);
+	return (this.realsize)? this.size.scale(16) : this.size.scale(6);
     }
 
     getBounds() {
@@ -619,7 +629,7 @@ class Game extends GameScene {
 
 	this.prodBox.clear();
 	this.priceBox.visible = false;
-	this.add(new Button(new Rect(240, 220, 40, 16)));
+	this.add(new Trash(new Vec2(250, 220)));
 
 	this.gameOver = false;
 	this.health = 3;
@@ -676,7 +686,7 @@ class Game extends GameScene {
 		case 1:
 		    this.addCustomer(new Customer2(), true);
 		    break;
-		case 3:
+		case 2:
 		    this.addCustomer(new Customer3(), true);
 		    break;
 		default:
@@ -755,7 +765,7 @@ class Game extends GameScene {
 	    this.layer.addTask(product);
 	    this.prodBox.addSegment(pos.move(20, -10), product.name);
 	    this.prodBox.addSegment(pos.move(20, 0), '$'+product.price);
-	    pos = pos.move(0, 20);
+	    pos = pos.move(0, 24);
 	}
 	this.nextbeep = 5;
 	playSound(APP.audios['start']);
@@ -786,7 +796,7 @@ class Game extends GameScene {
 
     openPriceBox() {
 	this.priceBox.clear();
-	this.priceBox.addDisplay('UMM... TOTAL IS...');
+	this.priceBox.addDisplay('TOTAL PRICE?\n');
 	// TODO: add Tax
 	let n = 5;
 	let menu = this.priceBox.addMenu();
