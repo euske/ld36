@@ -198,6 +198,11 @@ class Product extends Entity {
     }
 
     render(ctx: CanvasRenderingContext2D, bx: number, by: number) {
+	let size = this.getSize();
+	let bounds = ((this.rot90)?
+		      this.pos.expand(size.y, size.x) :
+		      this.pos.expand(size.x, size.y));
+	fillRect(ctx, bx, by, bounds.move(2,2), 'rgb(32,32,32)');
 	super.render(ctx, bx, by);
 	if (this.isFocused()) {
 	    drawRect(ctx, bx, by, this.getBounds().getAABB().inflate(4,4), 'white', 2);
@@ -262,25 +267,53 @@ class Product extends Entity {
     }
 }
 
-class Product1 extends Product {
+class ProductCabbage extends Product {
     constructor(customer: Customer) {
-	super(customer, 'green', new Vec2(1,2));
-	this.price = rnd(10, 20);
-	this.name = 'veg.';
+	super(customer, 'rgb(140,255,100)', new Vec2(2,2));
+	this.price = rnd(5, 10);
+	this.name = 'cabbage';
     }
 }
-class Product2 extends Product {
+class ProductMeat extends Product {
     constructor(customer: Customer) {
-	super(customer, 'red', new Vec2(1,1));
+	super(customer, 'rgb(255,100,100)', new Vec2(1,2));
 	this.price = rnd(5, 10);
-	this.name = 'apple';
+	this.name = 'meat';
     }
 }
-class Product3 extends Product {
+class ProductChocolate extends Product {
     constructor(customer: Customer) {
-	super(customer, 'rgb(128,64,0)', new Vec2(1,3));
-	this.price = rnd(5, 10);
+	super(customer, 'rgb(96,32,0)', new Vec2(1,1));
+	this.price = 5;
+	this.name = 'chocolt';
+    }
+}
+class ProductIcecream extends Product {
+    constructor(customer: Customer) {
+	super(customer, 'white', new Vec2(1,2));
+	this.price = 10;
+	this.name = 'icecrem';
+    }
+}
+class ProductBeer extends Product {
+    constructor(customer: Customer) {
+	super(customer, 'rgb(160,80,0)', new Vec2(1,3));
+	this.price = (rnd(2) == 0)? 5 : 10;
 	this.name = 'beer';
+    }
+}
+class ProductCereal extends Product {
+    constructor(customer: Customer) {
+	super(customer, 'rgb(255,200,0)', new Vec2(2,3));
+	this.price = rnd(5, 10);
+	this.name = 'cereal';
+    }
+}
+class ProductLiquor extends Product {
+    constructor(customer: Customer) {
+	super(customer, 'rgb(150,180,180)', new Vec2(1,3));
+	this.price = rnd(10, 20);
+	this.name = 'liquor';
     }
 }
 
@@ -297,6 +330,7 @@ class Customer extends Entity {
     extra: number = 16;
     space: number = 8;
     speed: number = 2;
+    minor: boolean = false;
     
     constructor(spriteno: number) {
 	super(new Vec2());
@@ -355,21 +389,36 @@ class Customer extends Entity {
 	return products;
     }
 
+    getProducts(): Product[] {
+	// OVERRIDE
+	return [];
+    }
+}
+
+class Customer1 extends Customer {
+    constructor() {
+	super(1+rnd(2));	// kids
+	this.space = 2+rnd(6);
+	this.minor = true;
+	this.extra = 32;
+    }
+
     getProducts() {
 	this.patience = 5;
-	let n = 2+rnd(5);
+	let n = 1+rnd(3);
 	let products: Product[] = []
 	for (let i = 0; i < n; i++) {
-	    this.patience += 5+rnd(5);
-	    switch (rnd(3)) {
+	    this.patience += 5;
+	    switch (rnd(4)) {
 	    case 0:
-		products.push(new Product1(this));
-		break;
 	    case 1:
-		products.push(new Product2(this));
+		products.push(new ProductChocolate(this));
 		break;
 	    case 2:
-		products.push(new Product3(this));
+		products.push(new ProductIcecream(this));
+		break;
+	    case 3:
+		products.push(new ProductBeer(this));
 		break;
 	    }
 	}
@@ -377,24 +426,56 @@ class Customer extends Entity {
     }
 }
 
-class Customer1 extends Customer {
-    constructor() {
-	super(1+rnd(2));	// kid
-	this.space = 2+rnd(6);
-    }
-}
-
 class Customer2 extends Customer {
     constructor() {
-	super(3+rnd(2));	// old
+	super(3+rnd(2));	// old people
 	this.space = 2+rnd(4);
+	this.extra = 16;
+    }
+
+    getProducts() {
+	this.patience = 5;
+	let n = 2;
+	let products: Product[] = []
+	for (let i = 0; i < n; i++) {
+	    this.patience += 5+rnd(10);
+	    switch (rnd(2)) {
+	    case 0:
+		products.push(new ProductMeat(this));
+		break;
+	    case 1:
+		products.push(new ProductCabbage(this));
+		break;
+	    }
+	}
+	return products;
     }
 }
 
 class Customer3 extends Customer {
     constructor() {
-	super(5+rnd(2));	// young
+	super(5+rnd(2));	// young people
 	this.space = 4+rnd(4);
+	this.extra = 32;
+    }
+
+    getProducts() {
+	this.patience = 1;
+	let n = 3+rnd(3);
+	let products: Product[] = []
+	for (let i = 0; i < n; i++) {
+	    this.patience += 5+rnd(5);
+	    switch (rnd(3)) {
+	    case 0:
+	    case 1:
+		products.push(new ProductBeer(this));
+		break;
+	    case 2:
+		products.push(new ProductCereal(this));
+		break;
+	    }
+	}
+	return products;
     }
 }
 
@@ -402,6 +483,31 @@ class Customer4 extends Customer {
     constructor() {
 	super(7+rnd(2));	// adult
 	this.space = 4;
+	this.extra = 16;
+    }
+
+    getProducts() {
+	this.patience = 10;
+	let n = 2+rnd(5);
+	let products: Product[] = []
+	for (let i = 0; i < n; i++) {
+	    this.patience += 5+rnd(5);
+	    switch (rnd(4)) {
+	    case 0:
+		products.push(new ProductChocolate(this));
+		break;
+	    case 1:
+		products.push(new ProductBeer(this));
+		break;
+	    case 2:
+		products.push(new ProductCereal(this));
+		break;
+	    case 3:
+		products.push(new ProductLiquor(this));
+		break;
+	    }
+	}
+	return products;
     }
 }
 
@@ -484,6 +590,7 @@ class Game extends GameScene {
 		let sprite = this.layer.mouseActive;
 		if (sprite instanceof Product) {
 		    sprite.rotate();
+		    playSound(APP.audios['put']);
 		}
 	    }
 	    this.checkProducts(true);
@@ -561,7 +668,7 @@ class Game extends GameScene {
 	if (this.nextcust < t) {
 	    this.nextcust = t+rnd(1, 5);
 	    if (this.customers.length < CUSTOMERS_MAX) {
-		let n = (this.score < 100)? 3 : 4;
+		let n = (this.score < 80)? 3 : 4;
 		switch (rnd(n)) {
 		case 0:
 		    this.addCustomer(new Customer1(), true);
@@ -584,8 +691,8 @@ class Game extends GameScene {
 	ctx.fillStyle = 'rgb(0,0,0)';
 	ctx.fillRect(bx, by, this.screen.width, this.screen.height);
 	ctx.drawImage(APP.images['lane'], 0, 0);
-	fillRect(ctx, bx, by, PRODRECT, 'rgb(160,200,40)');
-	fillRect(ctx, bx, by, PLACERECT, 'gray');
+	fillRect(ctx, bx, by, PRODRECT, 'rgb(150,190,30)');
+	fillRect(ctx, bx, by, PLACERECT, 'rgb(80,80,80)');
 
 	let customer = this.getCustomer();
 	// draw a basket.
@@ -602,6 +709,8 @@ class Game extends GameScene {
 	// draw the indicator.
 	if (customer !== null && customer.isSessionStarted()) {
 	    let t = lowerbound(0, customer.getTimeLeft());
+	    ctx.fillStyle = 'rgb(64,64,64)'
+	    ctx.fillRect(bx+33, by+5, t*8, 8);
 	    ctx.fillStyle = (t < 5)? 'red' : 'rgb(0,255,0)';
 	    ctx.fillRect(bx+32, by+4, t*8, 8);
 	}
@@ -698,7 +807,7 @@ class Game extends GameScene {
 		    this.score += total;
 		    this.updateStatus();
 		    playSound(APP.audios['chachin']);
-		    let balloon = new Balloon(new Vec2(70,this.screen.height-10), '$'+total);
+		    let balloon = new Balloon(new Vec2(60,this.screen.height-10), '+$'+total);
 		    this.add(balloon);
 		}
 		this.endSession(customer, value == 0);
