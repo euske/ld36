@@ -40,7 +40,7 @@ class SpriteSheet {
     constructor() {
     }
     
-    get(x:number, y=0, origin: Vec2=null) {
+    get(x:number, y=0, w=1, h=1, origin: Vec2=null) {
 	return null as ImageSource;
     }
 }
@@ -54,13 +54,19 @@ class ImageSpriteSheet extends SpriteSheet {
 	super();
 	this.image = image;
 	this.size = size;
-	this.origin = (origin !== null)? origin : new Vec2();
+	this.origin = origin;
     }
 
-    get(x:number, y=0, origin: Vec2=null) {
-	origin = (origin !== null)? origin : this.origin;
-	let srcRect = new Rect(x*this.size.x, y*this.size.y, this.size.x, this.size.y);
-	let dstRect = new Rect(-origin.x, -origin.y, this.size.x, this.size.y);
+    get(x:number, y=0, w=1, h=1, origin: Vec2=null) {
+	if (origin === null) {
+	    if (this.origin === null) {
+		origin = new Vec2(w*this.size.x/2, h*this.size.y/2);
+	    } else {
+		origin = this.origin;
+	    }
+	}
+	let srcRect = new Rect(x*this.size.x, y*this.size.y, w*this.size.x, h*this.size.y);
+	let dstRect = new Rect(-origin.x, -origin.y, w*this.size.x, h*this.size.y);
 	return new HTMLImageSource(this.image, srcRect, dstRect);
     }
 }
@@ -73,7 +79,7 @@ class SimpleSpriteSheet extends SpriteSheet {
 	this.imgsrcs = imgsrcs;
     }
 
-    get(x:number, y=0, origin: Vec2=null) {
+    get(x:number, y=0, w=1, h=1, origin: Vec2=null) {
 	return this.imgsrcs[x];
     }
 }
