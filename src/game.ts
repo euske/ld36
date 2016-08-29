@@ -64,13 +64,13 @@ function drawBasket(
     rect: Rect, color: string) {
     let center = rect.center();
     ctx.beginPath();
-    for (let i = -1; i <= +1; i++) {
-	let y = center.y+i*rect.height/4;
+    for (let i = -2; i <= +2; i++) {
+	let y = center.y+i*rect.height/6;
 	ctx.moveTo(bx+rect.x, by+y);
 	ctx.lineTo(bx+rect.right(), by+y);
     }
-    for (let i = -1; i <= +1; i++) {
-	let x = center.x+i*rect.width/4;
+    for (let i = -2; i <= +2; i++) {
+	let x = center.x+i*rect.width/6;
 	ctx.moveTo(bx+x, rect.y);
 	ctx.lineTo(bx+x, rect.bottom());
     }
@@ -917,6 +917,8 @@ class Game extends GameScene {
 	    this.prodBox.addSegment(pos.move(20, 0), '$'+product.price);
 	    pos = pos.move(0, 24);
 	}
+	// adjust the overall patience.
+	customer.patience *= Math.pow(0.8, this.score/100.0);
 	this.nextbeep = 5;
 	playSound(APP.audios['start']);
     }
@@ -1041,10 +1043,11 @@ class Game extends GameScene {
     }	
     
     showGameOver() {
-	let banner = new TextBox(this.screen.resize(200, 24));
+	let banner = new TextBox(this.screen.resize(200, 48));
 	banner.font = FONT;
 	banner.background = 'rgba(0,0,0,0.5)'
-	banner.putText(['GAME OVER!'], 'center', 'center');
+	banner.linespace = 4;
+	banner.putText(['GAME OVER!', 'SALES: $'+this.score], 'center', 'center');
 	this.add(banner);
 	this.app.setMusic();
 	this.app.lockKeys();
