@@ -746,7 +746,7 @@ class Game extends GameScene {
 	    let sprite = this.layer.mouseActive;
 	    if (sprite instanceof Product) {
 		if (sprite.trashable) {
-		    let trashed = (this.layer.findSpriteAt(p) === this.trash);
+		    let trashed = this.trash.getBounds().containsPt(p);
 		    if (sprite.trashed != trashed) {
 			sprite.trashed = trashed;
 			playSound(APP.audios['put']);
