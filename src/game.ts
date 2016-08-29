@@ -660,7 +660,7 @@ class Game extends GameScene {
     nextbeep: number = 0;
     customers: Customer[] = [];
     products: Product[] = [];
-    explainKids: boolean = false;
+    explainKids: boolean = true;
     
     constructor(app: App) {
 	super(app);
@@ -781,7 +781,7 @@ class Game extends GameScene {
 	this.customers = [];
 	this.addCustomer(new CustomerOld(), false);
 	this.addCustomer(new CustomerYoung(), false);
-	this.addCustomer(new CustomerKid(!this.explainKids), false);
+	this.addCustomer(new CustomerKid(this.explainKids), false);
 
 	let casher = new Sprite(new Vec2(60,30));
 	casher.imgsrc = SPRITES.get(0);
@@ -898,7 +898,7 @@ class Game extends GameScene {
     startSession(customer: Customer) {
 	assert(!customer.isSessionStarted());
 	if (customer instanceof CustomerKid) {
-	    if (!this.explainKids && customer.wantBooze) {
+	    if (this.explainKids && customer.wantBooze) {
 		let banner = new TextBox(this.screen.resize(220, 48));
 		banner.font = FONT;
 		banner.background = 'rgba(0,0,0,0.5)'
@@ -906,6 +906,7 @@ class Game extends GameScene {
 		banner.linespace = 4;
 		banner.putText(["No beer for kids.","Put it into trash!"], 'center', 'center');
 		this.add(banner);
+		this.explainKids = false;
 	    }
 	}
 	let pos = new Vec2(240, 70);
