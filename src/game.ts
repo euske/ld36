@@ -687,8 +687,6 @@ class Game extends GameScene {
 	this.priceBox.linespace = 4;
 	this.priceBox.background = 'rgba(0,0,0,0.5)'
 	this.priceBox.start(this.layer);
-
-	this.trash = new Trash(new Vec2(250, 220));
     }
     
     startPos: Vec2 = null;
@@ -770,6 +768,8 @@ class Game extends GameScene {
 
 	this.prodBox.clear();
 	this.priceBox.visible = false;
+
+	this.trash = new Trash(new Vec2(250, 220));
 	this.add(this.trash);
 
 	this.gameOver = false;
