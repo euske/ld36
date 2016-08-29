@@ -660,6 +660,7 @@ class Game extends GameScene {
     nextbeep: number = 0;
     customers: Customer[] = [];
     products: Product[] = [];
+    explainRule: boolean = true;
     explainKids: boolean = true;
     
     constructor(app: App) {
@@ -787,13 +788,16 @@ class Game extends GameScene {
 	casher.imgsrc = SPRITES.get(0);
 	casher.zOrder = 1;
 	this.add(casher);
-	
-	let banner = new TextBox(this.screen.resize(220, 24));
-	banner.font = FONT;
-	banner.background = 'rgba(0,0,0,0.5)'
-	banner.lifetime = 3;
-	banner.putText(['Drag products into basket!'], 'center', 'center');
-	this.add(banner);
+
+	if (this.explainRule) {
+	    this.explainRule = false;
+	    let banner = new TextBox(this.screen.resize(220, 24));
+	    banner.font = FONT;
+	    banner.background = 'rgba(0,0,0,0.5)'
+	    banner.lifetime = 3;
+	    banner.putText(['Drag products into basket!'], 'center', 'center');
+	    this.add(banner);
+	}
 	
 	this.app.setMusic(APP.audios['village'], 3.0, 14.9);
     }
