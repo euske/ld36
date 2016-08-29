@@ -794,6 +794,8 @@ class Game extends GameScene {
 	banner.lifetime = 3;
 	banner.putText(['Drag products into basket!'], 'center', 'center');
 	this.add(banner);
+	
+	this.app.setMusic(APP.audios['village'], 3.0, 14.9);
     }
 
     tick(t: number) {
@@ -1044,6 +1046,7 @@ class Game extends GameScene {
 	banner.background = 'rgba(0,0,0,0.5)'
 	banner.putText(['GAME OVER!'], 'center', 'center');
 	this.add(banner);
+	this.app.setMusic();
 	this.app.lockKeys();
 	this.gameOver = true;
     }
